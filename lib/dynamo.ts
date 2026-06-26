@@ -30,3 +30,8 @@ export function key(pk: string, sk: string) {
 export function nowSeconds() {
   return Math.floor(Date.now() / 1000)
 }
+
+/** DynamoDB is only reachable when the integration env vars are present. */
+export function isDynamoConfigured(): boolean {
+  return Boolean(TABLE_NAME && region && roleArn)
+}

@@ -9,6 +9,15 @@ const port = Number(process.env.PGPORT || 5432)
 const user = process.env.PGUSER || "postgres"
 const database = process.env.PGDATABASE || "postgres"
 
+/**
+ * Aurora is only reachable when the integration env vars are injected
+ * (Preview / Production). In the local v0 sandbox these are absent, so the
+ * repository layer falls back to seed data instead of throwing.
+ */
+export function isDbConfigured(): boolean {
+  return Boolean(host && region && process.env.AWS_ROLE_ARN)
+}
+
 // IAM token signer — generates a short-lived auth token used as the password.
 const signer = new Signer({
   credentials: awsCredentialsProvider({

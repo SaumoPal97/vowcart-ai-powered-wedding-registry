@@ -20,7 +20,7 @@ export default async function RegistryPage() {
         action={
           <Button
             nativeButton={false}
-            render={<Link href="/dashboard/recommendations" />}
+            render={<Link href="/dashboard/search" />}
           >
             <Sparkles data-icon="inline-start" />
             Add gifts

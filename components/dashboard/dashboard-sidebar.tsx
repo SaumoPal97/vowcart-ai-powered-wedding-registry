@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Gift,
+  Search,
   Sparkles,
   BarChart3,
   HeartHandshake,
@@ -31,6 +32,7 @@ import {
 const NAV = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { title: "My Registry", href: "/dashboard/registry", icon: Gift },
+  { title: "Find Gifts", href: "/dashboard/search", icon: Search },
   {
     title: "Recommendations",
     href: "/dashboard/recommendations",

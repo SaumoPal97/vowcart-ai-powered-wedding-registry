@@ -6,10 +6,12 @@ export function AuthShell({
   children,
   title,
   subtitle,
+  eyebrow,
 }: {
   children: ReactNode
   title: string
   subtitle: string
+  eyebrow?: string
 }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
@@ -18,6 +20,11 @@ export function AuthShell({
         <div className="flex flex-1 items-center justify-center py-10">
           <div className="w-full max-w-sm">
             <div className="mb-8 flex flex-col gap-2">
+              {eyebrow ? (
+                <span className="text-sm font-medium text-accent">
+                  {eyebrow}
+                </span>
+              ) : null}
               <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground">
                 {title}
               </h1>

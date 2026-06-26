@@ -20,18 +20,19 @@ export function Countdown({
   className?: string
 }) {
   const target = new Date(date).getTime()
-  const [parts, setParts] = useState(() => getParts(target))
+  const [parts, setParts] = useState<ReturnType<typeof getParts> | null>(null)
 
   useEffect(() => {
+    setParts(getParts(target))
     const interval = setInterval(() => setParts(getParts(target)), 1000)
     return () => clearInterval(interval)
   }, [target])
 
   const units = [
-    { label: "Days", value: parts.days },
-    { label: "Hours", value: parts.hours },
-    { label: "Minutes", value: parts.minutes },
-    { label: "Seconds", value: parts.seconds },
+    { label: "Days", value: parts?.days },
+    { label: "Hours", value: parts?.hours },
+    { label: "Minutes", value: parts?.minutes },
+    { label: "Seconds", value: parts?.seconds },
   ]
 
   return (
@@ -39,7 +40,9 @@ export function Countdown({
       {units.map((unit) => (
         <div key={unit.label} className="flex flex-col items-center">
           <span className="font-serif text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
-            {String(unit.value).padStart(2, "0")}
+            {unit.value === undefined
+              ? "--"
+              : String(unit.value).padStart(2, "0")}
           </span>
           <span className="mt-1 text-[0.65rem] font-medium uppercase tracking-widest text-muted-foreground">
             {unit.label}

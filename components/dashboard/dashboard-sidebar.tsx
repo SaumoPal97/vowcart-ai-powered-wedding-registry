@@ -80,6 +80,7 @@ export function DashboardSidebar() {
         <Button
           variant="outline"
           className="w-full justify-start"
+          nativeButton={false}
           render={<Link href={`/r/${couple.slug}`} target="_blank" />}
         >
           <ExternalLink data-icon="inline-start" />

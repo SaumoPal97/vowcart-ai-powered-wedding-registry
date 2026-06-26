@@ -24,6 +24,7 @@ export function Hero() {
             <Button
               size="lg"
               className="h-12 px-6 text-base"
+              nativeButton={false}
               render={<Link href="/sign-up" />}
             >
               Create Registry
@@ -33,6 +34,7 @@ export function Hero() {
               variant="outline"
               size="lg"
               className="h-12 px-6 text-base"
+              nativeButton={false}
               render={<Link href="/#how-it-works" />}
             >
               <Play data-icon="inline-start" />

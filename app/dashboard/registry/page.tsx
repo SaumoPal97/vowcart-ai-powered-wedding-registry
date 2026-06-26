@@ -11,7 +11,10 @@ export default function RegistryPage() {
         title="My Registry"
         description="Manage every gift, set priorities, and track what's been claimed."
         action={
-          <Button render={<Link href="/dashboard/recommendations" />}>
+          <Button
+            nativeButton={false}
+            render={<Link href="/dashboard/recommendations" />}
+          >
             <Sparkles data-icon="inline-start" />
             Add gifts
           </Button>

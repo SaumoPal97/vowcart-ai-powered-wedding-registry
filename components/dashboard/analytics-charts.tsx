@@ -62,7 +62,7 @@ export function TrafficChart() {
       </CardHeader>
       <CardContent>
         <ChartContainer config={trafficConfig} className="h-[280px] w-full">
-          <AreaChart data={dailyViews} margin={{ left: -10, right: 12 }}>
+          <AreaChart data={dailyViews} margin={{ left: 4, right: 12 }}>
             <defs>
               <linearGradient id="fillViews" x1="0" y1="0" x2="0" y2="1">
                 <stop
@@ -96,7 +96,7 @@ export function TrafficChart() {
               axisLine={false}
               tickMargin={8}
             />
-            <YAxis tickLine={false} axisLine={false} tickMargin={8} width={32} />
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} width={40} />
             <ChartTooltip content={<ChartTooltipContent />} />
             <ChartLegend content={<ChartLegendContent />} />
             <Area

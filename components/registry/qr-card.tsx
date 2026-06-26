@@ -21,20 +21,24 @@ export function QrCard({
   className?: string
 }) {
   const svgRef = useRef<HTMLDivElement>(null)
-  const registryUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/r/${slug}`
-      : `https://vowcart.app/r/${slug}`
+
+  function getRegistryUrl() {
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://vowcart.app"
+    return `${origin}/r/${slug}`
+  }
 
   function copyLink() {
-    navigator.clipboard.writeText(registryUrl)
+    navigator.clipboard.writeText(getRegistryUrl())
     toast.success("Registry link copied to clipboard")
   }
 
   function share() {
     if (navigator.share) {
       navigator
-        .share({ title: "Our Wedding Registry", url: registryUrl })
+        .share({ title: "Our Wedding Registry", url: getRegistryUrl() })
         .catch(() => {})
     } else {
       copyLink()
@@ -81,7 +85,7 @@ export function QrCard({
           ref={svgRef}
           className="size-44 rounded-2xl border border-border bg-white p-3 shadow-sm"
         >
-          <QrCode value={registryUrl} />
+          <QrCode value={`vowcart.app/r/${slug}`} />
         </div>
         <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
           <Button variant="outline" size="lg" onClick={downloadPng}>

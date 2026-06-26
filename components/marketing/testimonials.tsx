@@ -78,6 +78,7 @@ export function Testimonials() {
               size="lg"
               variant="secondary"
               className="h-12 px-6 text-base"
+              nativeButton={false}
               render={<Link href="/sign-up" />}
             >
               Create Your Registry

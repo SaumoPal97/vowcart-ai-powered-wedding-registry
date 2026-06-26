@@ -37,7 +37,10 @@ export default function DashboardOverview() {
         title={`Welcome back, ${couple.partnerOne}`}
         description={`Your wedding is on ${formatWeddingDate(couple.weddingDate)} in ${couple.location}.`}
         action={
-          <Button render={<Link href="/dashboard/recommendations" />}>
+          <Button
+            nativeButton={false}
+            render={<Link href="/dashboard/recommendations" />}
+          >
             <Sparkles data-icon="inline-start" />
             Add gifts
           </Button>

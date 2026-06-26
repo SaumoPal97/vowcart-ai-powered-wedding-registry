@@ -34,10 +34,19 @@ export function Navbar() {
 
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
-          <Button variant="ghost" size="lg" render={<Link href="/sign-in" />}>
+          <Button
+            variant="ghost"
+            size="lg"
+            nativeButton={false}
+            render={<Link href="/sign-in" />}
+          >
             Sign In
           </Button>
-          <Button size="lg" render={<Link href="/sign-up" />}>
+          <Button
+            size="lg"
+            nativeButton={false}
+            render={<Link href="/sign-up" />}
+          >
             Create Registry
           </Button>
         </div>
@@ -69,10 +78,16 @@ export function Navbar() {
               </Link>
             ))}
             <div className="mt-2 flex flex-col gap-2">
-              <Button variant="outline" render={<Link href="/sign-in" />}>
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<Link href="/sign-in" />}
+              >
                 Sign In
               </Button>
-              <Button render={<Link href="/sign-up" />}>Create Registry</Button>
+              <Button nativeButton={false} render={<Link href="/sign-up" />}>
+                Create Registry
+              </Button>
             </div>
           </nav>
         </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Search, Plus, Check, Loader2, Sparkles, PackageSearch } from "lucide-react"
 import { ProductCard } from "@/components/registry/product-card"
 import { Button } from "@/components/ui/button"
@@ -44,36 +44,84 @@ export function ProductSearch() {
   const [category, setCategory] = useState<string>("all")
   const [results, setResults] = useState<Product[] | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [hasNext, setHasNext] = useState(false)
+  const [total, setTotal] = useState<number | undefined>(undefined)
   const [source, setSource] = useState<string>("")
   const [lastQuery, setLastQuery] = useState("")
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [pending, setPending] = useState<string | null>(null)
 
-  async function runSearch(term: string) {
-    const q = term.trim()
-    if (!q) return
-    setQuery(q)
-    setLoading(true)
-    setLastQuery(q)
+  const abortRef = useRef<AbortController | null>(null)
+  const reqIdRef = useRef(0)
+  // Cursor is read inside an async appended fetch; keep a ref to avoid stale closure.
+  const cursorRef = useRef<string | null>(null)
+  cursorRef.current = cursor
+
+  async function fetchPage(reset: boolean) {
+    const term = query.trim()
+    if (!term) return
+    abortRef.current?.abort()
+    const ac = new AbortController()
+    abortRef.current = ac
+    const reqId = ++reqIdRef.current
+
+    if (reset) setLoading(true)
+    else setLoadingMore(true)
+    if (reset) setLastQuery(term)
+
     try {
       const res = await fetch("/api/products/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: ac.signal,
         body: JSON.stringify({
-          query: q,
+          query: term,
           category: category === "all" ? undefined : category,
+          cursor: reset ? undefined : cursorRef.current,
         }),
       })
       const data = await res.json()
-      setResults(data.products ?? [])
+      if (reqId !== reqIdRef.current) return // a newer request superseded this one
+      const incoming: Product[] = data.products ?? []
       setSource(data.source ?? "")
-    } catch {
-      toast.error("Search failed. Please try again.")
-      setResults([])
+      setCursor(data.cursor ?? null)
+      setHasNext(Boolean(data.hasNextPage))
+      setTotal(data.totalCount)
+      setResults((prev) => {
+        if (reset || prev === null) return incoming
+        // De-dupe across pages by product id.
+        const seen = new Set(prev.map((p) => p.id))
+        return [...prev, ...incoming.filter((p) => !seen.has(p.id))]
+      })
+    } catch (err) {
+      if ((err as { name?: string }).name !== "AbortError") {
+        toast.error("Search failed. Please try again.")
+        if (reset) setResults([])
+      }
     } finally {
-      setLoading(false)
+      if (reqId === reqIdRef.current) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
     }
   }
+
+  // Debounced as-you-type search (and on category change).
+  useEffect(() => {
+    const term = query.trim()
+    if (term.length === 0) {
+      setResults(null)
+      setCursor(null)
+      setHasNext(false)
+      return
+    }
+    if (term.length < 2) return
+    const t = setTimeout(() => fetchPage(true), 450)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, category])
 
   async function add(product: Product) {
     if (added.has(product.id)) return
@@ -100,7 +148,7 @@ export function ProductSearch() {
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          runSearch(query)
+          fetchPage(true)
         }}
         className="flex flex-col gap-3 sm:flex-row"
       >
@@ -111,7 +159,7 @@ export function ProductSearch() {
             onChange={(e) => setQuery(e.target.value)}
           />
           <InputGroupAddon>
-            <Search />
+            {loading ? <Loader2 className="animate-spin" /> : <Search />}
           </InputGroupAddon>
         </InputGroup>
         <Select value={category} onValueChange={(v) => setCategory(v ?? "all")}>
@@ -129,19 +177,6 @@ export function ProductSearch() {
             </SelectGroup>
           </SelectContent>
         </Select>
-        <Button type="submit" disabled={loading || !query.trim()}>
-          {loading ? (
-            <>
-              <Loader2 data-icon="inline-start" className="animate-spin" />
-              Searching
-            </>
-          ) : (
-            <>
-              <Search data-icon="inline-start" />
-              Search
-            </>
-          )}
-        </Button>
       </form>
 
       {/* Initial state: suggestion chips */}
@@ -155,7 +190,7 @@ export function ProductSearch() {
                 variant="outline"
                 size="sm"
                 className="rounded-full"
-                onClick={() => runSearch(s)}
+                onClick={() => setQuery(s)}
               >
                 {s}
               </Button>
@@ -177,7 +212,7 @@ export function ProductSearch() {
         </div>
       )}
 
-      {/* Loading skeletons */}
+      {/* First-page loading skeletons */}
       {loading && (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -195,7 +230,9 @@ export function ProductSearch() {
         <>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {results.length} result{results.length === 1 ? "" : "s"} for{" "}
+              Showing {results.length}
+              {total ? ` of ~${total.toLocaleString()}` : ""} result
+              {results.length === 1 ? "" : "s"} for{" "}
               <span className="font-medium text-foreground">
                 &ldquo;{lastQuery}&rdquo;
               </span>
@@ -221,50 +258,72 @@ export function ProductSearch() {
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {results.map((product) => {
-                const isAdded = added.has(product.id)
-                const isPending = pending === product.id
-                return (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    topLeft={
-                      <Badge variant="secondary">{product.merchant}</Badge>
-                    }
-                    footer={
-                      <Button
-                        variant={isAdded ? "outline" : "default"}
-                        size="sm"
-                        className="w-full"
-                        disabled={isAdded || isPending}
-                        onClick={() => add(product)}
-                      >
-                        {isAdded ? (
-                          <>
-                            <Check data-icon="inline-start" />
-                            Added
-                          </>
-                        ) : isPending ? (
-                          <>
-                            <Loader2
-                              data-icon="inline-start"
-                              className="animate-spin"
-                            />
-                            Adding...
-                          </>
-                        ) : (
-                          <>
-                            <Plus data-icon="inline-start" />
-                            Add to registry
-                          </>
-                        )}
-                      </Button>
-                    }
-                  />
-                )
-              })}
-            </div>
+            <>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {results.map((product) => {
+                  const isAdded = added.has(product.id)
+                  const isPending = pending === product.id
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      topLeft={
+                        <Badge variant="secondary">{product.merchant}</Badge>
+                      }
+                      footer={
+                        <Button
+                          variant={isAdded ? "outline" : "default"}
+                          size="sm"
+                          className="w-full"
+                          disabled={isAdded || isPending}
+                          onClick={() => add(product)}
+                        >
+                          {isAdded ? (
+                            <>
+                              <Check data-icon="inline-start" />
+                              Added
+                            </>
+                          ) : isPending ? (
+                            <>
+                              <Loader2
+                                data-icon="inline-start"
+                                className="animate-spin"
+                              />
+                              Adding...
+                            </>
+                          ) : (
+                            <>
+                              <Plus data-icon="inline-start" />
+                              Add to registry
+                            </>
+                          )}
+                        </Button>
+                      }
+                    />
+                  )
+                })}
+              </div>
+
+              {hasNext && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => fetchPage(false)}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Loader2 data-icon="inline-start" className="animate-spin" />
+                        Loading more...
+                      </>
+                    ) : (
+                      "Load more results"
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

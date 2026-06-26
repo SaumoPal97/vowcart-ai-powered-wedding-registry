@@ -22,28 +22,39 @@ function seedSearch(query: string, category?: ProductCategory): Product[] {
 export async function POST(request: Request) {
   let query = ""
   let category: ProductCategory | undefined
+  let cursor: string | undefined
   try {
     const body = await request.json()
     query = String(body.query ?? "").slice(0, 200)
     if (body.category && CATEGORIES.includes(body.category)) {
       category = body.category as ProductCategory
     }
+    if (typeof body.cursor === "string") cursor = body.cursor
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 })
   }
 
   if (isUcpEnabled() && query) {
     try {
-      const products = await searchCatalog(query, { category, limit: 24 })
-      if (products.length > 0) {
-        return NextResponse.json({ products, source: "ucp" })
+      const result = await searchCatalog(query, { category, limit: 24, cursor })
+      if (result.products.length > 0) {
+        return NextResponse.json({
+          products: result.products,
+          cursor: result.cursor,
+          hasNextPage: result.hasNextPage,
+          totalCount: result.totalCount,
+          source: "ucp",
+        })
       }
     } catch (err) {
       console.error("[v0] UCP search failed, falling back to seed:", err)
     }
   }
+  // Seed fallback is a single page (no cursor).
   return NextResponse.json({
     products: seedSearch(query, category),
+    cursor: null,
+    hasNextPage: false,
     source: "seed",
   })
 }

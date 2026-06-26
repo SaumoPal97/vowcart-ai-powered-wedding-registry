@@ -82,7 +82,7 @@ async function curateWithUcp(
   try {
     const results = await Promise.all(
       GROUPS.map(async (g) => {
-        const products = await searchCatalog(queryForGroup(g.id, q), {
+        const { products } = await searchCatalog(queryForGroup(g.id, q), {
           category: g.categories[0] as ProductCategory,
           limit: 4,
         })

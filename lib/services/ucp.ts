@@ -52,6 +52,14 @@ export interface SearchOptions {
   priceMax?: number // dollars
   country?: string
   currency?: string
+  cursor?: string // pagination cursor from a previous result
+}
+
+export interface SearchResult {
+  products: Product[]
+  cursor: string | null
+  hasNextPage: boolean
+  totalCount?: number
 }
 
 function mapProduct(p: UcpProduct, category: ProductCategory): Product | null {
@@ -137,7 +145,7 @@ async function callTool(
 export async function searchCatalog(
   query: string,
   opts: SearchOptions = {},
-): Promise<Product[]> {
+): Promise<SearchResult> {
   const category = opts.category ?? "Home Decor"
   const catalog: Record<string, unknown> = {
     query,
@@ -146,7 +154,10 @@ export async function searchCatalog(
       language: "en",
       currency: opts.currency ?? "USD",
     },
-    pagination: { limit: opts.limit ?? 12 },
+    pagination: {
+      limit: opts.limit ?? 12,
+      ...(opts.cursor ? { cursor: opts.cursor } : {}),
+    },
   }
   if (opts.priceMin != null || opts.priceMax != null) {
     catalog.filters = {
@@ -158,11 +169,21 @@ export async function searchCatalog(
   }
   const structured = (await callTool("search_catalog", { catalog })) as {
     products?: UcpProduct[]
+    pagination?: {
+      has_next_page?: boolean
+      cursor?: string
+      total_count?: number
+    }
   }
-  const products = structured.products ?? []
-  return products
+  const products = (structured.products ?? [])
     .map((p) => mapProduct(p, category))
     .filter((p): p is Product => p !== null)
+  return {
+    products,
+    cursor: structured.pagination?.cursor ?? null,
+    hasNextPage: Boolean(structured.pagination?.has_next_page),
+    totalCount: structured.pagination?.total_count,
+  }
 }
 
 /** Resolve a single product/variant by its UCP gid (e.g. to refresh a checkout URL). */

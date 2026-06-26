@@ -68,21 +68,21 @@ function rowToItem(r: ItemRow): RegistryItem {
 
 // Deterministic seed items for sandbox fallback.
 export function buildSeedItems(): RegistryItem[] {
-  return seedRegistryItems
-    .map((s) => {
-      const product = getCatalogProductById(s.productId)
-      if (!product) return null
-      return {
-        ...product,
-        id: `seed-${s.productId}`,
-        status: s.status,
-        priority: s.priority,
-        purchasedBy: s.purchasedBy,
-        purchasedByEmail: s.purchasedByEmail,
-        purchaseDate: s.purchaseDate,
-      } satisfies RegistryItem
+  const items: RegistryItem[] = []
+  for (const s of seedRegistryItems) {
+    const product = getCatalogProductById(s.productId)
+    if (!product) continue
+    items.push({
+      ...product,
+      id: `seed-${s.productId}`,
+      status: s.status,
+      priority: s.priority,
+      purchasedBy: s.purchasedBy,
+      purchasedByEmail: s.purchasedByEmail,
+      purchaseDate: s.purchaseDate,
     })
-    .filter((x): x is RegistryItem => x !== null)
+  }
+  return items
 }
 
 export async function getRegistryItemsByCoupleId(
@@ -242,6 +242,47 @@ export async function deleteRegistryItem(id: string): Promise<boolean> {
     id,
   ])
   return rowCount > 0
+}
+
+const CHART_FILLS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+]
+
+export interface RegistryStats {
+  total: number
+  purchased: number
+  reserved: number
+  available: number
+  topCategories: { category: string; added: number; fill: string }[]
+}
+
+export async function getRegistryStatsByCoupleId(
+  coupleId: string,
+): Promise<RegistryStats> {
+  const items = await getRegistryItemsByCoupleId(coupleId)
+  const byCategory = new Map<string, number>()
+  for (const i of items) {
+    byCategory.set(i.category, (byCategory.get(i.category) ?? 0) + 1)
+  }
+  const topCategories = [...byCategory.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([category, added], idx) => ({
+      category,
+      added,
+      fill: CHART_FILLS[idx % CHART_FILLS.length],
+    }))
+  return {
+    total: items.length,
+    purchased: items.filter((i) => i.status === "purchased").length,
+    reserved: items.filter((i) => i.status === "reserved").length,
+    available: items.filter((i) => i.status === "available").length,
+    topCategories,
+  }
 }
 
 export async function getCatalog(): Promise<Product[]> {

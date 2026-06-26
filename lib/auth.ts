@@ -64,6 +64,40 @@ export async function getSession() {
   return token ? deserialize(token) : null
 }
 
+const DEMO_COUPLE_ID = "00000000-0000-0000-0000-0000000b0001"
+
+export interface SessionUser {
+  userId: string
+  email: string
+  coupleId: string
+}
+
+/**
+ * Resolves the authenticated user together with their couple id.
+ *
+ * In the sandbox (no DB) we always resolve to the demo couple so the
+ * dashboard remains fully browsable without a login round-trip. In
+ * production an unauthenticated request returns null.
+ */
+export async function getSessionUser(): Promise<SessionUser | null> {
+  const session = await getSession()
+  if (!isDbConfigured()) {
+    return {
+      userId: session?.userId ?? "00000000-0000-0000-0000-000000000001",
+      email: session?.email ?? "maya@vowcart.app",
+      coupleId: DEMO_COUPLE_ID,
+    }
+  }
+  if (!session) return null
+  const { rows } = await query<{ id: string }>(
+    `SELECT id FROM couples WHERE user_id = $1 LIMIT 1`,
+    [session.userId],
+  )
+  const coupleId = rows[0]?.id
+  if (!coupleId) return null
+  return { userId: session.userId, email: session.email, coupleId }
+}
+
 // --- user lookups ----------------------------------------------------------
 export interface UserRow {
   id: string

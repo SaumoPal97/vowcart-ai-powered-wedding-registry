@@ -404,6 +404,18 @@ export function getCatalogProductById(id: string) {
   return catalog.find((p) => p.id === id)
 }
 
+// Shared enum maps (used by the seed builder; the repo has its own copies).
+export const statusToDbMap = {
+  available: "AVAILABLE",
+  reserved: "RESERVED",
+  purchased: "PURCHASED",
+} as const
+
+export const priorityToDbMap = {
+  "must-have": "MUST_HAVE",
+  "nice-to-have": "NICE_TO_HAVE",
+} as const
+
 // Seed registry items: [productId, status, priority, purchaser?] tuples.
 export const seedRegistryItems: {
   productId: string

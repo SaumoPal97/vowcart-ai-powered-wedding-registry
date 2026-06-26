@@ -37,7 +37,7 @@ export function Recommendations({
       const res = await fetch("/api/registry/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: product.id }),
+        body: JSON.stringify({ product }),
       })
       if (!res.ok) throw new Error("failed")
       setAdded((prev) => new Set(prev).add(product.title))

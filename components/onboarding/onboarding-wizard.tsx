@@ -78,7 +78,7 @@ export function OnboardingWizard() {
           fetch("/api/registry/items", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ productId: p.id }),
+            body: JSON.stringify({ product: p }),
           }),
         ),
       )

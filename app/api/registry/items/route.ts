@@ -27,9 +27,10 @@ export async function POST(request: Request) {
   }
   try {
     const body = await request.json()
-    const product = body.productId
-      ? getCatalogProductById(body.productId)
-      : undefined
+    // A full UCP/search product object, or a seed catalog id.
+    const product =
+      body.product ??
+      (body.productId ? getCatalogProductById(body.productId) : undefined)
     const item = await addRegistryItem(user.coupleId, {
       product,
       title: body.title,
@@ -38,6 +39,9 @@ export async function POST(request: Request) {
       price: body.price,
       category: body.category,
       priority: body.priority,
+      productGid: body.productGid,
+      variantId: body.variantId,
+      checkoutUrl: body.checkoutUrl,
     })
     if (!item) {
       return NextResponse.json(

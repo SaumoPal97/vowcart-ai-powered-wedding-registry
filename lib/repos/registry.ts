@@ -21,6 +21,8 @@ interface ItemRow {
   category: string
   priority: "MUST_HAVE" | "NICE_TO_HAVE"
   status: "AVAILABLE" | "RESERVED" | "PURCHASED"
+  checkout_url: string | null
+  variant_id: string | null
   guest_name: string | null
   guest_email: string | null
   purchased_at: string | null
@@ -58,6 +60,9 @@ function rowToItem(r: ItemRow): RegistryItem {
     description: r.description,
     status: statusFromDb[r.status],
     priority: priorityFromDb[r.priority],
+    productGid: r.product_id ?? undefined,
+    variantId: r.variant_id ?? undefined,
+    checkoutUrl: r.checkout_url ?? undefined,
     purchasedBy: r.guest_name ?? undefined,
     purchasedByEmail: r.guest_email ?? undefined,
     purchaseDate: r.purchased_at
@@ -156,11 +161,15 @@ export async function addRegistryItem(
     price?: number
     category?: string
     priority?: ItemPriority
+    productGid?: string
+    variantId?: string
+    checkoutUrl?: string
   },
 ): Promise<RegistryItem | null> {
   const p = input.product
   const item = {
-    productId: p?.id ?? null,
+    // UCP products carry a gid; the seed catalog uses its short id.
+    productId: input.productGid ?? p?.productGid ?? p?.id ?? null,
     title: input.title ?? p?.title ?? "Untitled gift",
     merchant: input.merchant ?? p?.merchant ?? "VowCart",
     image: input.image ?? p?.image ?? "/placeholder.svg",
@@ -170,6 +179,8 @@ export async function addRegistryItem(
     description: p?.description ?? "",
     category: input.category ?? p?.category ?? "Home Decor",
     priority: priorityToDb[input.priority ?? "nice-to-have"],
+    variantId: input.variantId ?? p?.variantId ?? null,
+    checkoutUrl: input.checkoutUrl ?? p?.checkoutUrl ?? null,
   }
   if (!isDbConfigured()) {
     return {
@@ -184,14 +195,17 @@ export async function addRegistryItem(
       category: item.category as Product["category"],
       priority: input.priority ?? "nice-to-have",
       status: "available",
+      productGid: item.productId ?? undefined,
+      variantId: item.variantId ?? undefined,
+      checkoutUrl: item.checkoutUrl ?? undefined,
     }
   }
   const registryId = await getRegistryIdForCouple(coupleId)
   if (!registryId) return null
   const { rows } = await query<ItemRow>(
     `INSERT INTO registry_items
-       (registry_id, product_id, merchant, title, image, price, rating, reviews, description, category, priority, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'AVAILABLE')
+       (registry_id, product_id, merchant, title, image, price, rating, reviews, description, category, priority, status, variant_id, checkout_url)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'AVAILABLE',$12,$13)
      RETURNING *, NULL::text AS guest_name, NULL::text AS guest_email, NULL::timestamptz AS purchased_at`,
     [
       registryId,
@@ -205,6 +219,8 @@ export async function addRegistryItem(
       item.description,
       item.category,
       item.priority,
+      item.variantId,
+      item.checkoutUrl,
     ],
   )
   return rowToItem(rows[0])

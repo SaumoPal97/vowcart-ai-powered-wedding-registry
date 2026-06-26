@@ -25,7 +25,7 @@ import { formatPrice } from "@/lib/data"
 import type { RegistryItem, ItemStatus } from "@/lib/types"
 import { toast } from "sonner"
 
-type Step = "details" | "form" | "success"
+type Step = "details" | "form" | "confirm" | "success"
 type Intent = "buy" | "reserve"
 
 export function GiftDialog({
@@ -86,48 +86,69 @@ export function GiftDialog({
     })()
   }
 
+  // Primary action from the form step.
   async function submit() {
     if (!name.trim() || !email.trim() || !item) return
+    if (intent === "reserve") return submitReserve()
+    // UCP buy → hand off to the merchant's real Shopify checkout, then confirm.
+    if (item.checkoutUrl) {
+      window.open(item.checkoutUrl, "_blank", "noopener,noreferrer")
+      setStep("confirm")
+      return
+    }
+    // No UCP checkout URL (legacy/seed item) → complete directly.
+    return finalizePurchase()
+  }
+
+  async function submitReserve() {
+    if (!item) return
     setLoading(true)
     try {
-      if (intent === "reserve") {
-        const res = await fetch("/api/reservation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            registryItemId: item.id,
-            reservedBy: name,
-            slug,
-          }),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          toast.error(data.error ?? "Couldn't reserve this gift.")
-          setLoading(false)
-          return
-        }
-      } else {
-        const res = await fetch("/api/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            registryItemId: item.id,
-            guestName: name,
-            guestEmail: email,
-            slug,
-          }),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          toast.error(data.error ?? "Checkout failed. Please try again.")
-          setLoading(false)
-          return
-        }
+      const res = await fetch("/api/reservation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registryItemId: item.id, reservedBy: name, slug }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? "Couldn't reserve this gift.")
+        setLoading(false)
+        return
       }
       setLoading(false)
       setStep("success")
-      if (intent === "buy") fireConfetti()
-      onComplete(item.id, intent === "buy" ? "purchased" : "reserved", name)
+      onComplete(item.id, "reserved", name)
+    } catch {
+      toast.error("Something went wrong. Please try again.")
+      setLoading(false)
+    }
+  }
+
+  // Records the purchase in VowCart after the guest checks out on the merchant.
+  async function finalizePurchase() {
+    if (!item) return
+    setLoading(true)
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registryItemId: item.id,
+          guestName: name,
+          guestEmail: email,
+          slug,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? "Couldn't record your gift. Please try again.")
+        setLoading(false)
+        return
+      }
+      setLoading(false)
+      setStep("success")
+      fireConfetti()
+      onComplete(item.id, "purchased", name)
     } catch {
       toast.error("Something went wrong. Please try again.")
       setLoading(false)
@@ -241,10 +262,17 @@ export function GiftDialog({
                     {intent === "buy" ? "Processing..." : "Reserving..."}
                   </>
                 ) : intent === "buy" ? (
-                  <>
-                    <ShoppingBag data-icon="inline-start" />
-                    Pay {formatPrice(item.price)}
-                  </>
+                  item.checkoutUrl ? (
+                    <>
+                      <ExternalLink data-icon="inline-start" />
+                      Continue to {item.merchant}
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag data-icon="inline-start" />
+                      Pay {formatPrice(item.price)}
+                    </>
+                  )
                 ) : (
                   <>
                     <Clock data-icon="inline-start" />
@@ -259,6 +287,61 @@ export function GiftDialog({
                 disabled={loading}
               >
                 Back
+              </Button>
+            </div>
+          </>
+        )}
+
+        {step === "confirm" && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="font-serif text-xl">
+                Finish at {item.merchant}
+              </DialogTitle>
+              <DialogDescription>
+                We opened {item.merchant}&apos;s secure Shopify checkout in a new
+                tab. Complete your purchase there, then confirm below so the
+                couple sees it&apos;s claimed.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded-xl border border-border bg-secondary/50 p-4 text-sm text-muted-foreground">
+              Didn&apos;t see the tab open?{" "}
+              <a
+                href={item.checkoutUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                Open checkout again
+              </a>
+              .
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button
+                size="lg"
+                className="w-full"
+                onClick={finalizePurchase}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 data-icon="inline-start" className="animate-spin" />
+                    Confirming...
+                  </>
+                ) : (
+                  <>
+                    <Check data-icon="inline-start" />
+                    I&apos;ve completed my purchase
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => setStep("details")}
+                disabled={loading}
+              >
+                Cancel
               </Button>
             </div>
           </>

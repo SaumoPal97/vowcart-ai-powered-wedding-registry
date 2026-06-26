@@ -1,8 +1,7 @@
 import "server-only"
-import { generateObject } from "ai"
-import { z } from "zod"
 import { catalog } from "@/lib/catalog"
-import type { Product, RecommendationGroup } from "@/lib/types"
+import type { Product, ProductCategory, RecommendationGroup } from "@/lib/types"
+import { isUcpEnabled, searchCatalog } from "./ucp"
 import {
   getCachedRecommendations,
   questionnaireHash,
@@ -49,60 +48,69 @@ function curate(q: Questionnaire, perGroup = 4): RecommendationGroup[] {
   }).filter((g) => g.products.length > 0)
 }
 
-async function curateWithAI(q: Questionnaire): Promise<RecommendationGroup[] | null> {
+// Build a UCP catalog search query for a group, tailored by the lifestyle answers.
+function queryForGroup(groupId: string, q: Questionnaire): string {
+  const loves = (k: string, v: string) => q[k] === v
+  switch (groupId) {
+    case "kitchen":
+      return loves("cooking", "We live for it")
+        ? "premium kitchen cookware stand mixer dutch oven"
+        : "kitchen essentials cookware set"
+    case "dining":
+      return "modern dinnerware glassware flatware for entertaining"
+    case "bedroom":
+      return "luxury bedding sheet set pillows"
+    case "travel":
+      return loves("travel", "Constantly")
+        ? "premium carry-on luggage travel gear"
+        : "weekender travel duffel bag"
+    case "smart-home":
+      return loves("coffee", "Daily ritual")
+        ? "smart home espresso machine coffee maker"
+        : "smart home devices lighting vacuum"
+    case "decor":
+      return "modern home decor throw blanket table lamp wall art"
+    default:
+      return "wedding registry gift"
+  }
+}
+
+// Source each group's products from the live Shopify UCP Global Catalog.
+async function curateWithUcp(
+  q: Questionnaire,
+): Promise<RecommendationGroup[] | null> {
   try {
-    const compact = catalog.map((p) => ({
-      id: p.id,
-      title: p.title,
-      category: p.category,
-      price: p.price,
-    }))
-    const { object } = await generateObject({
-      model: "openai/gpt-5-mini",
-      schema: z.object({
-        groups: z.array(
-          z.object({
-            id: z.string(),
-            productIds: z.array(z.string()),
-          }),
-        ),
+    const results = await Promise.all(
+      GROUPS.map(async (g) => {
+        const products = await searchCatalog(queryForGroup(g.id, q), {
+          category: g.categories[0] as ProductCategory,
+          limit: 4,
+        })
+        return { id: g.id, title: g.title, subtitle: g.subtitle, products }
       }),
-      prompt:
-        `You are a wedding registry curator. Given this couple's lifestyle answers:\n` +
-        `${JSON.stringify(q)}\n\n` +
-        `And this product catalog (id, title, category, price):\n` +
-        `${JSON.stringify(compact)}\n\n` +
-        `Select the best 3-4 products for each of these groups by id: ` +
-        `${GROUPS.map((g) => `${g.id} (${g.categories.join("/")})`).join(", ")}.\n` +
-        `Only use product ids from the catalog. Tailor picks to the answers ` +
-        `(cooking, coffee, travel, budget, home type). Return ids per group.`,
-    })
-    const byId = new Map(catalog.map((p) => [p.id, p]))
-    const groups = GROUPS.map((g) => {
-      const picked = object.groups.find((x) => x.id === g.id)
-      const products = (picked?.productIds ?? [])
-        .map((id) => byId.get(id))
-        .filter((p): p is Product => Boolean(p) && g.categories.includes(p!.category))
-        .slice(0, 4)
-      return { id: g.id, title: g.title, subtitle: g.subtitle, products }
-    }).filter((g) => g.products.length > 0)
-    // If the model returned too little, treat as failure.
+    )
+    const groups = results.filter((g) => g.products.length > 0)
     const total = groups.reduce((a, g) => a + g.products.length, 0)
+    // Require a meaningful spread before trusting the live results.
     return total >= 6 ? groups : null
-  } catch {
+  } catch (err) {
+    console.error("[v0] UCP recommendations failed, using seed:", err)
     return null
   }
 }
 
 export async function getRecommendations(
   q: Questionnaire,
-): Promise<{ groups: RecommendationGroup[]; source: "cache" | "ai" | "fallback" }> {
+): Promise<{
+  groups: RecommendationGroup[]
+  source: "cache" | "ucp" | "fallback"
+}> {
   const hash = questionnaireHash(q)
   const cached = await getCachedRecommendations<RecommendationGroup[]>(hash)
   if (cached) return { groups: cached, source: "cache" }
 
-  const ai = await curateWithAI(q)
-  const groups = ai ?? curate(q)
+  const ucp = isUcpEnabled() ? await curateWithUcp(q) : null
+  const groups = ucp ?? curate(q)
   await setCachedRecommendations(hash, groups)
-  return { groups, source: ai ? "ai" : "fallback" }
+  return { groups, source: ucp ? "ucp" : "fallback" }
 }

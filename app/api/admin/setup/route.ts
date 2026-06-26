@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const migrations = ["001-init-schema.sql"]
+    const migrations = ["001-init-schema.sql", "002-ucp-fields.sql"]
     for (const file of migrations) {
       const sql = await readFile(
         join(process.cwd(), "scripts", file),

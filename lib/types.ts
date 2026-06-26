@@ -20,6 +20,12 @@ export interface Product {
   category: ProductCategory
   image: string
   description: string
+  // Shopify UCP fields (present when sourced from the Universal Commerce
+  // Protocol Catalog; absent for the local seed catalog).
+  productGid?: string
+  variantId?: string
+  checkoutUrl?: string
+  sellerDomain?: string
 }
 
 export interface RegistryItem extends Product {

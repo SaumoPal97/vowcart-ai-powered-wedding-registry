@@ -6,7 +6,13 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card"
-import { activityFeed } from "@/lib/data"
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty"
 import type { ActivityEvent } from "@/lib/types"
 
 const ICONS: Record<ActivityEvent["type"], typeof ShoppingBag> = {
@@ -16,7 +22,7 @@ const ICONS: Record<ActivityEvent["type"], typeof ShoppingBag> = {
   added: PackagePlus,
 }
 
-export function ActivityFeed() {
+export function ActivityFeed({ events }: { events: ActivityEvent[] }) {
   return (
     <Card>
       <CardHeader>
@@ -24,10 +30,23 @@ export function ActivityFeed() {
         <CardDescription>The latest from your registry.</CardDescription>
       </CardHeader>
       <CardContent>
+        {events.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Clock />
+              </EmptyMedia>
+              <EmptyTitle>No activity yet</EmptyTitle>
+              <EmptyDescription>
+                Once guests start viewing and gifting, you&apos;ll see it here.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
         <ol className="flex flex-col">
-          {activityFeed.map((event, i) => {
+          {events.map((event, i) => {
             const Icon = ICONS[event.type]
-            const isLast = i === activityFeed.length - 1
+            const isLast = i === events.length - 1
             return (
               <li key={event.id} className="flex gap-4">
                 <div className="flex flex-col items-center">
@@ -51,6 +70,7 @@ export function ActivityFeed() {
             )
           })}
         </ol>
+        )}
       </CardContent>
     </Card>
   )

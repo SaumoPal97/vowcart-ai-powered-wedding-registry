@@ -13,24 +13,29 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import {
-  couple,
-  registryItems,
-  formatWeddingDate,
-} from "@/lib/data"
-import type { ItemStatus, RegistryItem } from "@/lib/types"
+import { formatWeddingDate } from "@/lib/data"
+import type { Couple, ItemStatus, RegistryItem } from "@/lib/types"
 import { toast } from "sonner"
 
 type Filter = "all" | "available" | "must-have"
 
-export function PublicRegistry() {
-  const [items, setItems] = useState<RegistryItem[]>(registryItems)
+export function PublicRegistry({
+  couple,
+  items: initialItems,
+  slug,
+}: {
+  couple: Couple
+  items: RegistryItem[]
+  slug: string
+}) {
+  const [items, setItems] = useState<RegistryItem[]>(initialItems)
   const [filter, setFilter] = useState<Filter>("all")
   const [selected, setSelected] = useState<RegistryItem | null>(null)
   const [open, setOpen] = useState(false)
 
   const purchased = items.filter((i) => i.status === "purchased").length
-  const completion = Math.round((purchased / items.length) * 100)
+  const completion =
+    items.length > 0 ? Math.round((purchased / items.length) * 100) : 0
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
@@ -186,6 +191,7 @@ export function PublicRegistry() {
         item={selected}
         open={open}
         onOpenChange={setOpen}
+        slug={slug}
         onComplete={handleComplete}
       />
     </div>

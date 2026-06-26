@@ -27,11 +27,10 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart"
-import {
-  dailyViews,
-  topCategories,
-  mostViewedGifts,
-} from "@/lib/data"
+
+type DailyView = { date: string; views: number; scans: number }
+type CategorySlice = { category: string; added: number; fill: string }
+type ViewedGift = { name: string; views: number }
 
 const trafficConfig = {
   views: { label: "Page views", color: "var(--chart-1)" },
@@ -51,7 +50,7 @@ const viewsConfig = {
   views: { label: "Views", color: "var(--chart-1)" },
 } satisfies ChartConfig
 
-export function TrafficChart() {
+export function TrafficChart({ data }: { data: DailyView[] }) {
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
@@ -62,7 +61,7 @@ export function TrafficChart() {
       </CardHeader>
       <CardContent>
         <ChartContainer config={trafficConfig} className="h-[280px] w-full">
-          <AreaChart data={dailyViews} margin={{ left: 4, right: 12 }}>
+          <AreaChart data={data} margin={{ left: 4, right: 12 }}>
             <defs>
               <linearGradient id="fillViews" x1="0" y1="0" x2="0" y2="1">
                 <stop
@@ -120,7 +119,7 @@ export function TrafficChart() {
   )
 }
 
-export function CategoryChart() {
+export function CategoryChart({ data }: { data: CategorySlice[] }) {
   return (
     <Card>
       <CardHeader>
@@ -135,13 +134,13 @@ export function CategoryChart() {
           <PieChart>
             <ChartTooltip content={<ChartTooltipContent nameKey="category" />} />
             <Pie
-              data={topCategories}
+              data={data}
               dataKey="added"
               nameKey="category"
               innerRadius={55}
               strokeWidth={3}
             >
-              {topCategories.map((entry) => (
+              {data.map((entry) => (
                 <Cell key={entry.category} fill={entry.fill} />
               ))}
             </Pie>
@@ -156,7 +155,7 @@ export function CategoryChart() {
   )
 }
 
-export function MostViewedChart() {
+export function MostViewedChart({ data }: { data: ViewedGift[] }) {
   return (
     <Card>
       <CardHeader>
@@ -166,7 +165,7 @@ export function MostViewedChart() {
       <CardContent>
         <ChartContainer config={viewsConfig} className="h-[260px] w-full">
           <BarChart
-            data={mostViewedGifts}
+            data={data}
             layout="vertical"
             margin={{ left: 8, right: 16 }}
           >

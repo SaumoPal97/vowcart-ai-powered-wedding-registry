@@ -15,9 +15,40 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { merchantInsights } from "@/lib/data"
+import { formatPrice } from "@/lib/data"
+import { merchantInsights } from "@/lib/catalog"
+import { getCurrentCouple } from "@/lib/repos/couples"
+import {
+  getRegistryIdForCoupleId,
+  getRegistryItemsByCoupleId,
+  getRegistryStatsByCoupleId,
+} from "@/lib/repos/registry"
+import { getAnalyticsSummary } from "@/lib/services/analytics"
 
-export default function AnalyticsPage() {
+export const dynamic = "force-dynamic"
+
+export default async function AnalyticsPage() {
+  const couple = await getCurrentCouple()
+  const [registryId, stats, items] = await Promise.all([
+    getRegistryIdForCoupleId(couple.id),
+    getRegistryStatsByCoupleId(couple.id),
+    getRegistryItemsByCoupleId(couple.id),
+  ])
+  const summary = await getAnalyticsSummary(registryId ?? "unknown", {
+    topCategories: stats.topCategories,
+  })
+
+  const completion =
+    stats.total > 0 ? Math.round((stats.purchased / stats.total) * 100) : 0
+  const conversion =
+    summary.totalViews > 0
+      ? Math.round((stats.purchased / summary.totalViews) * 100)
+      : 0
+  const avgGiftValue =
+    items.length > 0
+      ? items.reduce((sum, i) => sum + i.price, 0) / items.length
+      : 0
+
   return (
     <>
       <PageHeader
@@ -28,37 +59,37 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Total views"
-            value="1,024"
+            value={summary.totalViews.toLocaleString()}
             icon={Eye}
-            trend="+28%"
+            hint={`${completion}% registry complete`}
           />
           <StatCard
             label="QR scans"
-            value="216"
+            value={summary.qrScans.toLocaleString()}
             icon={QrCode}
-            trend="+41%"
+            hint="From invitations & signage"
           />
           <StatCard
-            label="Add-to-purchase"
-            value="48%"
+            label="View-to-purchase"
+            value={`${conversion}%`}
             icon={MousePointerClick}
             hint="Conversion rate"
           />
           <StatCard
             label="Avg. gift value"
-            value="$284"
+            value={formatPrice(avgGiftValue)}
             icon={TrendingUp}
-            trend="+12%"
+            hint="Across your registry"
           />
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <TrafficChart />
-          <CategoryChart />
+          <TrafficChart data={summary.dailyViews} />
+          <CategoryChart data={summary.topCategories} />
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <MostViewedChart />
+          <MostViewedChart data={summary.mostViewedGifts} />
           <Card>
             <CardHeader>
               <CardTitle>Merchant insights</CardTitle>
@@ -108,6 +139,10 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Merchant insights are anonymized and aggregated across the VowCart
+          network.
+        </p>
       </div>
     </>
   )

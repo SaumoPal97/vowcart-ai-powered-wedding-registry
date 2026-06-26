@@ -1,7 +1,14 @@
 import { PageHeader } from "@/components/dashboard/page-header"
 import { ThankYouTracker } from "@/components/dashboard/thank-you-tracker"
+import { getCurrentCouple } from "@/lib/repos/couples"
+import { getThankYouNotes } from "@/lib/repos/purchases"
 
-export default function ThankYousPage() {
+export const dynamic = "force-dynamic"
+
+export default async function ThankYousPage() {
+  const couple = await getCurrentCouple()
+  const notes = await getThankYouNotes(couple.id)
+
   return (
     <>
       <PageHeader
@@ -9,7 +16,10 @@ export default function ThankYousPage() {
         description="Track gifts received and send heartfelt notes with AI assistance."
       />
       <div className="p-4 sm:p-6">
-        <ThankYouTracker />
+        <ThankYouTracker
+          initialNotes={notes}
+          coupleNames={`${couple.partnerOne} & ${couple.partnerTwo}`}
+        />
       </div>
     </>
   )

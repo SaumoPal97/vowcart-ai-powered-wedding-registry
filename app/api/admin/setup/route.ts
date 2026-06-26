@@ -38,6 +38,12 @@ export async function POST(request: Request) {
       )
       await pool.query(sql)
     }
+    // Restore a pristine demo: drop any non-seed (test/live) purchases so the
+    // re-seed below can reset item statuses cleanly. Seed purchases use a
+    // `SEED-` order id; real checkouts use `SHOP-`.
+    await pool.query(
+      `DELETE FROM purchases WHERE shopify_order_id IS NULL OR shopify_order_id NOT LIKE 'SEED-%'`,
+    )
     const seeded = await runSeed()
     return NextResponse.json({
       success: true,

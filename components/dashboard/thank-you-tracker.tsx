@@ -29,18 +29,25 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
-import { thankYouNotes } from "@/lib/data"
 import type { ThankYouNote } from "@/lib/types"
 import { toast } from "sonner"
 
-export function ThankYouTracker() {
-  const [notes, setNotes] = useState<ThankYouNote[]>(thankYouNotes)
+export function ThankYouTracker({
+  initialNotes,
+  coupleNames,
+}: {
+  initialNotes: ThankYouNote[]
+  coupleNames: string
+}) {
+  const [notes, setNotes] = useState<ThankYouNote[]>(initialNotes)
   const [active, setActive] = useState<ThankYouNote | null>(null)
   const [draft, setDraft] = useState("")
   const [generating, setGenerating] = useState(false)
+  const [sending, setSending] = useState(false)
 
   const sent = notes.filter((n) => n.status === "sent").length
-  const completion = Math.round((sent / notes.length) * 100)
+  const completion =
+    notes.length > 0 ? Math.round((sent / notes.length) * 100) : 0
 
   function openNote(note: ThankYouNote) {
     setActive(note)
@@ -52,19 +59,33 @@ export function ThankYouTracker() {
     setGenerating(true)
     setTimeout(() => {
       setDraft(
-        `Dear ${active.purchasedBy},\n\nThank you so much for the ${active.gift}! It means the world to us that you're celebrating this new chapter with us. We can't wait to put it to good use in our new home, and we feel so lucky to have you in our lives.\n\nWith love and gratitude,\nMaya & Daniel`,
+        `Dear ${active.purchasedBy},\n\nThank you so much for the ${active.gift}! It means the world to us that you're celebrating this new chapter with us. We can't wait to put it to good use in our new home, and we feel so lucky to have you in our lives.\n\nWith love and gratitude,\n${coupleNames}`,
       )
       setGenerating(false)
     }, 900)
   }
 
-  function markSent() {
+  async function markSent() {
     if (!active) return
-    setNotes((prev) =>
-      prev.map((n) => (n.id === active.id ? { ...n, status: "sent" } : n)),
-    )
-    toast.success(`Thank-you note sent to ${active.purchasedBy}`)
-    setActive(null)
+    const target = active
+    setSending(true)
+    try {
+      const res = await fetch(`/api/thank-you/${target.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "sent" }),
+      })
+      if (!res.ok) throw new Error("failed")
+      setNotes((prev) =>
+        prev.map((n) => (n.id === target.id ? { ...n, status: "sent" } : n)),
+      )
+      toast.success(`Thank-you note sent to ${target.purchasedBy}`)
+      setActive(null)
+    } catch {
+      toast.error("Couldn't update that note. Please try again.")
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -178,9 +199,9 @@ export function ThankYouTracker() {
             >
               Cancel
             </Button>
-            <Button onClick={markSent} disabled={!draft.trim()}>
+            <Button onClick={markSent} disabled={!draft.trim() || sending}>
               <Send data-icon="inline-start" />
-              Send &amp; mark complete
+              {sending ? "Sending..." : "Send & mark complete"}
             </Button>
           </DialogFooter>
         </DialogContent>

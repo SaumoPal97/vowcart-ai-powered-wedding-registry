@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, ArrowRight, Check, Plus, Sparkles, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, Check, Loader2, Plus, Sparkles, X } from "lucide-react"
 import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,13 +16,10 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ProductCard } from "@/components/registry/product-card"
 import { AiBuilding } from "@/components/onboarding/ai-building"
-import {
-  lifestyleQuestions,
-  products,
-  registrySizes,
-  formatPrice,
-} from "@/lib/data"
+import { lifestyleQuestions, registrySizes, formatPrice } from "@/lib/data"
+import type { Product, RecommendationGroup } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 type Phase = "details" | "lifestyle" | "size" | "building" | "result"
 
@@ -38,16 +35,60 @@ export function OnboardingWizard() {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [size, setSize] = useState(50)
   const [removed, setRemoved] = useState<Set<string>>(new Set())
+  const [generated, setGenerated] = useState<Product[]>([])
+  const [saving, setSaving] = useState(false)
 
   const totalQuestions = lifestyleQuestions.length
   const currentQuestion = lifestyleQuestions[questionIndex]
 
-  const generated = useMemo(
-    () => products.slice(0, size >= 100 ? products.length : size >= 50 ? 12 : 8),
-    [size],
-  )
   const kept = generated.filter((p) => !removed.has(p.id))
   const estTotal = kept.reduce((sum, p) => sum + p.price, 0)
+
+  // Fetch real AI recommendations, flatten + de-dupe, cap by chosen size.
+  async function buildRegistry() {
+    setPhase("building")
+    try {
+      const res = await fetch("/api/ai/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionnaire: { ...answers, size } }),
+      })
+      const data = (await res.json()) as { groups?: RecommendationGroup[] }
+      const flat = (data.groups ?? []).flatMap((g) => g.products)
+      const unique = [...new Map(flat.map((p) => [p.id, p])).values()]
+      const cap = size >= 100 ? unique.length : size >= 50 ? 16 : 8
+      setGenerated(unique.slice(0, cap))
+    } catch {
+      toast.error("Couldn't build your registry. Please try again.")
+      setGenerated([])
+    }
+  }
+
+  // Persist couple details + every kept gift, then head to the dashboard.
+  async function saveAndContinue() {
+    setSaving(true)
+    try {
+      await fetch("/api/registry", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partnerOne, partnerTwo, weddingDate }),
+      })
+      await Promise.all(
+        kept.map((p) =>
+          fetch("/api/registry/items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ productId: p.id }),
+          }),
+        ),
+      )
+      router.push("/dashboard")
+      router.refresh()
+    } catch {
+      toast.error("Couldn't save your registry. Please try again.")
+      setSaving(false)
+    }
+  }
 
   const detailsValid =
     partnerOne.trim() && partnerTwo.trim() && weddingDate.trim()
@@ -260,7 +301,7 @@ export function OnboardingWizard() {
             <Button
               className="mt-8 w-full"
               size="lg"
-              onClick={() => setPhase("building")}
+              onClick={buildRegistry}
             >
               <Sparkles data-icon="inline-start" />
               Generate my registry
@@ -323,9 +364,18 @@ export function OnboardingWizard() {
               <p className="text-sm text-muted-foreground">
                 {kept.length} gifts kept · {formatPrice(estTotal)}
               </p>
-              <Button size="lg" onClick={() => router.push("/dashboard")}>
-                Save &amp; go to dashboard
-                <ArrowRight data-icon="inline-end" />
+              <Button size="lg" onClick={saveAndContinue} disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 data-icon="inline-start" className="animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    Save &amp; go to dashboard
+                    <ArrowRight data-icon="inline-end" />
+                  </>
+                )}
               </Button>
             </div>
           </div>

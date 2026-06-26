@@ -23,6 +23,7 @@ import { StarRating } from "@/components/registry/star-rating"
 import { StatusBadge } from "@/components/registry/badges"
 import { formatPrice } from "@/lib/data"
 import type { RegistryItem, ItemStatus } from "@/lib/types"
+import { toast } from "sonner"
 
 type Step = "details" | "form" | "success"
 type Intent = "buy" | "reserve"
@@ -31,11 +32,13 @@ export function GiftDialog({
   item,
   open,
   onOpenChange,
+  slug,
   onComplete,
 }: {
   item: RegistryItem | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  slug: string
   onComplete: (id: string, status: ItemStatus, name: string) => void
 }) {
   const [step, setStep] = useState<Step>("details")
@@ -83,15 +86,52 @@ export function GiftDialog({
     })()
   }
 
-  function submit() {
+  async function submit() {
     if (!name.trim() || !email.trim() || !item) return
     setLoading(true)
-    setTimeout(() => {
+    try {
+      if (intent === "reserve") {
+        const res = await fetch("/api/reservation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            registryItemId: item.id,
+            reservedBy: name,
+            slug,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          toast.error(data.error ?? "Couldn't reserve this gift.")
+          setLoading(false)
+          return
+        }
+      } else {
+        const res = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            registryItemId: item.id,
+            guestName: name,
+            guestEmail: email,
+            slug,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          toast.error(data.error ?? "Checkout failed. Please try again.")
+          setLoading(false)
+          return
+        }
+      }
       setLoading(false)
       setStep("success")
       if (intent === "buy") fireConfetti()
       onComplete(item.id, intent === "buy" ? "purchased" : "reserved", name)
-    }, 1100)
+    } catch {
+      toast.error("Something went wrong. Please try again.")
+      setLoading(false)
+    }
   }
 
   if (!item) return null

@@ -14,28 +14,75 @@ import {
   CardDescription,
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { formatPrice, formatWeddingDate } from "@/lib/data"
+import { getCurrentCouple } from "@/lib/repos/couples"
 import {
-  couple,
-  registryItems,
-  formatPrice,
-  formatWeddingDate,
-} from "@/lib/data"
+  getRegistryItemsByCoupleId,
+  getRegistryIdForCoupleId,
+} from "@/lib/repos/registry"
+import { getAnalyticsSummary } from "@/lib/services/analytics"
+import type { ActivityEvent, RegistryItem } from "@/lib/types"
 
-export default function DashboardOverview() {
-  const total = registryItems.length
-  const purchased = registryItems.filter((i) => i.status === "purchased")
-  const reserved = registryItems.filter((i) => i.status === "reserved")
+function buildActivity(items: RegistryItem[]): ActivityEvent[] {
+  const events: ActivityEvent[] = []
+  const purchased = items
+    .filter((i) => i.status === "purchased" && i.purchasedBy)
+    .sort((a, b) => (b.purchaseDate ?? "").localeCompare(a.purchaseDate ?? ""))
+  for (const i of purchased) {
+    events.push({
+      id: `purchase-${i.id}`,
+      type: "purchase",
+      message: `${i.purchasedBy} purchased the ${i.title}`,
+      detail: `${formatPrice(i.price)} · ${i.category}`,
+      time: i.purchaseDate
+        ? new Date(i.purchaseDate).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+          })
+        : "Recently",
+    })
+  }
+  for (const i of items.filter((i) => i.status === "reserved")) {
+    events.push({
+      id: `reserve-${i.id}`,
+      type: "reserve",
+      message: `A guest reserved the ${i.title}`,
+      detail: "Reservation pending checkout",
+      time: "Recently",
+    })
+  }
+  return events.slice(0, 6)
+}
+
+export const dynamic = "force-dynamic"
+
+export default async function DashboardOverview() {
+  const couple = await getCurrentCouple()
+  const [items, registryId] = await Promise.all([
+    getRegistryItemsByCoupleId(couple.id),
+    getRegistryIdForCoupleId(couple.id),
+  ])
+  const summary = await getAnalyticsSummary(registryId ?? "unknown")
+
+  const total = items.length
+  const purchased = items.filter((i) => i.status === "purchased")
+  const reserved = items.filter((i) => i.status === "reserved")
   const claimedValue = [...purchased, ...reserved].reduce(
     (sum, i) => sum + i.price,
     0,
   )
-  const completion = Math.round((purchased.length / total) * 100)
+  const completion = total > 0 ? Math.round((purchased.length / total) * 100) : 0
+  const activity = buildActivity(items)
 
   return (
     <>
       <PageHeader
         title={`Welcome back, ${couple.partnerOne}`}
-        description={`Your wedding is on ${formatWeddingDate(couple.weddingDate)} in ${couple.location}.`}
+        description={
+          couple.weddingDate
+            ? `Your wedding is on ${formatWeddingDate(couple.weddingDate)}${couple.location ? ` in ${couple.location}` : ""}.`
+            : "Let's build your perfect registry."
+        }
         action={
           <Button
             nativeButton={false}
@@ -63,9 +110,9 @@ export default function DashboardOverview() {
           />
           <StatCard
             label="Registry views"
-            value="1,024"
+            value={summary.totalViews.toLocaleString()}
             icon={Eye}
-            trend="+28% this week"
+            hint={`${summary.qrScans.toLocaleString()} QR scans`}
           />
           <StatCard
             label="Value claimed"
@@ -116,19 +163,21 @@ export default function DashboardOverview() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Counting down</CardTitle>
-                <CardDescription>
-                  Until you say &ldquo;I do.&rdquo;
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Countdown date={couple.weddingDate} />
-              </CardContent>
-            </Card>
+            {couple.weddingDate && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Counting down</CardTitle>
+                  <CardDescription>
+                    Until you say &ldquo;I do.&rdquo;
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Countdown date={couple.weddingDate} />
+                </CardContent>
+              </Card>
+            )}
 
-            <ActivityFeed />
+            <ActivityFeed events={activity} />
           </div>
 
           <div className="flex flex-col gap-6">

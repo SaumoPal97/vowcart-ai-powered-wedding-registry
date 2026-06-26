@@ -12,11 +12,17 @@ const port = Number(process.env.PGPORT || 5432)
 const user = process.env.PGUSER || "postgres"
 const database = process.env.PGDATABASE || "postgres"
 
+// OIDC creds on Vercel; default AWS chain (env/profile/SSO) locally.
+const credentials =
+  process.env.VERCEL_OIDC_TOKEN && process.env.AWS_ROLE_ARN
+    ? awsCredentialsProvider({
+        roleArn: process.env.AWS_ROLE_ARN,
+        clientConfig: { region },
+      })
+    : undefined
+
 const signer = new Signer({
-  credentials: awsCredentialsProvider({
-    roleArn: process.env.AWS_ROLE_ARN,
-    clientConfig: { region },
-  }),
+  credentials,
   region,
   hostname: host,
   username: user,
@@ -28,7 +34,8 @@ const pool = new pg.Pool({
   port,
   user,
   database,
-  password: () => signer.getAuthToken(),
+  // Static password when provided, otherwise short-lived IAM auth tokens.
+  password: process.env.PGPASSWORD ?? (() => signer.getAuthToken()),
   ssl: { rejectUnauthorized: false },
   max: 4,
 })

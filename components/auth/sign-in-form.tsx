@@ -6,25 +6,54 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export function SignInForm() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    setError(null)
     setLoading(true)
-    // Assumes POST /api/auth/login
-    setTimeout(() => router.push("/dashboard"), 700)
+    const form = new FormData(e.currentTarget)
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.get("email"),
+          password: form.get("password"),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? "Failed to sign in.")
+        setLoading(false)
+        return
+      }
+      router.push("/dashboard")
+      router.refresh()
+    } catch {
+      setError("Something went wrong. Please try again.")
+      setLoading(false)
+    }
   }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="email">Email</FieldLabel>
           <Input
             id="email"
+            name="email"
             type="email"
             placeholder="you@example.com"
             required
@@ -40,7 +69,13 @@ export function SignInForm() {
               Forgot password?
             </Link>
           </div>
-          <Input id="password" type="password" placeholder="••••••••" required />
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            placeholder="••••••••"
+            required
+          />
         </Field>
       </FieldGroup>
       <Button type="submit" size="lg" className="h-11" disabled={loading}>

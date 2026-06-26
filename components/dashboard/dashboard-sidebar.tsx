@@ -27,7 +27,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { couple } from "@/lib/data"
 
 const NAV = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -42,7 +41,15 @@ const NAV = [
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
 ]
 
-export function DashboardSidebar() {
+export function DashboardSidebar({
+  slug,
+  partnerOne,
+  partnerTwo,
+}: {
+  slug: string
+  partnerOne: string
+  partnerTwo: string
+}) {
   const pathname = usePathname()
 
   return (
@@ -81,7 +88,7 @@ export function DashboardSidebar() {
           variant="outline"
           className="w-full justify-start"
           nativeButton={false}
-          render={<Link href={`/r/${couple.slug}`} target="_blank" />}
+          render={<Link href={`/r/${slug}`} target="_blank" />}
         >
           <ExternalLink data-icon="inline-start" />
           View public page
@@ -89,13 +96,13 @@ export function DashboardSidebar() {
         <div className="flex items-center gap-3 rounded-xl border border-sidebar-border p-3">
           <Avatar className="size-9">
             <AvatarFallback className="bg-accent/15 text-accent">
-              {couple.partnerOne[0]}
-              {couple.partnerTwo[0]}
+              {partnerOne[0]}
+              {partnerTwo[0]}
             </AvatarFallback>
           </Avatar>
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-sm font-medium text-sidebar-foreground">
-              {couple.partnerOne} &amp; {couple.partnerTwo}
+              {partnerOne} &amp; {partnerTwo}
             </span>
             <span className="truncate text-xs text-muted-foreground">
               Couple account

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "db:migrate": "node --env-file=.env.local scripts/_run-sql.mjs scripts/001-init-schema.sql"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1075.0",

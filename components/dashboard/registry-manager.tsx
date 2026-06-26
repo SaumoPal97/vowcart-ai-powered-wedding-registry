@@ -20,14 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { registryItems, CATEGORIES, formatPrice } from "@/lib/data"
-import type { ItemStatus, RegistryItem } from "@/lib/types"
+import { CATEGORIES, formatPrice } from "@/lib/data"
+import type { ItemPriority, ItemStatus, RegistryItem } from "@/lib/types"
 import { toast } from "sonner"
 
 type Filter = "all" | ItemStatus
 
-export function RegistryManager() {
-  const [items, setItems] = useState<RegistryItem[]>(registryItems)
+export function RegistryManager({
+  initialItems,
+}: {
+  initialItems: RegistryItem[]
+}) {
+  const [items, setItems] = useState<RegistryItem[]>(initialItems)
   const [filter, setFilter] = useState<Filter>("all")
   const [category, setCategory] = useState<string>("all")
   const [query, setQuery] = useState("")
@@ -45,23 +49,39 @@ export function RegistryManager() {
     })
   }, [items, filter, category, query])
 
-  function removeItem(id: string) {
+  async function removeItem(id: string) {
+    const snapshot = items
     setItems((prev) => prev.filter((i) => i.id !== id))
-    toast.success("Gift removed from your registry")
+    try {
+      const res = await fetch(`/api/registry/items/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("failed")
+      toast.success("Gift removed from your registry")
+    } catch {
+      setItems(snapshot)
+      toast.error("Couldn't remove that gift. Please try again.")
+    }
   }
 
-  function togglePriority(id: string) {
+  async function togglePriority(id: string) {
+    const current = items.find((i) => i.id === id)
+    if (!current) return
+    const nextPriority: ItemPriority =
+      current.priority === "must-have" ? "nice-to-have" : "must-have"
+    const snapshot = items
     setItems((prev) =>
-      prev.map((i) =>
-        i.id === id
-          ? {
-              ...i,
-              priority:
-                i.priority === "must-have" ? "nice-to-have" : "must-have",
-            }
-          : i,
-      ),
+      prev.map((i) => (i.id === id ? { ...i, priority: nextPriority } : i)),
     )
+    try {
+      const res = await fetch(`/api/registry/items/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority: nextPriority }),
+      })
+      if (!res.ok) throw new Error("failed")
+    } catch {
+      setItems(snapshot)
+      toast.error("Couldn't update priority. Please try again.")
+    }
   }
 
   const counts = {

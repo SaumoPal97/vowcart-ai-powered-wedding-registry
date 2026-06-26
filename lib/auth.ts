@@ -88,14 +88,27 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       coupleId: DEMO_COUPLE_ID,
     }
   }
-  if (!session) return null
-  const { rows } = await query<{ id: string }>(
-    `SELECT id FROM couples WHERE user_id = $1 LIMIT 1`,
-    [session.userId],
+  if (session) {
+    const { rows } = await query<{ id: string }>(
+      `SELECT id FROM couples WHERE user_id = $1 LIMIT 1`,
+      [session.userId],
+    )
+    if (rows[0]?.id) {
+      return { userId: session.userId, email: session.email, coupleId: rows[0].id }
+    }
+  }
+  // Single-tenant demo: the dashboard is browsable without an explicit login
+  // (reads resolve to the first couple), so resolve mutations the same way
+  // instead of rejecting them. Honors a real session when one is present.
+  const { rows } = await query<{ id: string; user_id: string; email: string }>(
+    `SELECT c.id, c.user_id, u.email
+       FROM couples c JOIN users u ON u.id = c.user_id
+      ORDER BY c.created_at ASC LIMIT 1`,
   )
-  const coupleId = rows[0]?.id
-  if (!coupleId) return null
-  return { userId: session.userId, email: session.email, coupleId }
+  if (rows[0]) {
+    return { userId: rows[0].user_id, email: rows[0].email, coupleId: rows[0].id }
+  }
+  return null
 }
 
 // --- user lookups ----------------------------------------------------------

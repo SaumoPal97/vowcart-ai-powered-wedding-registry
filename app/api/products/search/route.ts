@@ -6,7 +6,12 @@ import type { Product, ProductCategory } from "@/lib/types"
 export const maxDuration = 30
 
 // Local seed search used when UCP is disabled or unavailable.
-function seedSearch(query: string, category?: ProductCategory): Product[] {
+function seedSearch(
+  query: string,
+  category?: ProductCategory,
+  priceMin?: number,
+  priceMax?: number,
+): Product[] {
   const q = query.trim().toLowerCase()
   return catalog.filter((p) => {
     const matchesCategory = !category || p.category === category
@@ -15,7 +20,10 @@ function seedSearch(query: string, category?: ProductCategory): Product[] {
       p.title.toLowerCase().includes(q) ||
       p.merchant.toLowerCase().includes(q) ||
       p.category.toLowerCase().includes(q)
-    return matchesCategory && matchesQuery
+    const matchesPrice =
+      (priceMin == null || p.price >= priceMin) &&
+      (priceMax == null || p.price <= priceMax)
+    return matchesCategory && matchesQuery && matchesPrice
   })
 }
 
@@ -23,6 +31,8 @@ export async function POST(request: Request) {
   let query = ""
   let category: ProductCategory | undefined
   let cursor: string | undefined
+  let priceMin: number | undefined
+  let priceMax: number | undefined
   try {
     const body = await request.json()
     query = String(body.query ?? "").slice(0, 200)
@@ -30,13 +40,23 @@ export async function POST(request: Request) {
       category = body.category as ProductCategory
     }
     if (typeof body.cursor === "string") cursor = body.cursor
+    if (typeof body.priceMin === "number" && body.priceMin >= 0)
+      priceMin = body.priceMin
+    if (typeof body.priceMax === "number" && body.priceMax > 0)
+      priceMax = body.priceMax
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 })
   }
 
   if (isUcpEnabled() && query) {
     try {
-      const result = await searchCatalog(query, { category, limit: 24, cursor })
+      const result = await searchCatalog(query, {
+        category,
+        limit: 24,
+        cursor,
+        priceMin,
+        priceMax,
+      })
       if (result.products.length > 0) {
         return NextResponse.json({
           products: result.products,
@@ -52,7 +72,7 @@ export async function POST(request: Request) {
   }
   // Seed fallback is a single page (no cursor).
   return NextResponse.json({
-    products: seedSearch(query, category),
+    products: seedSearch(query, category, priceMin, priceMax),
     cursor: null,
     hasNextPage: false,
     source: "seed",

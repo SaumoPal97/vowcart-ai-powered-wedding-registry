@@ -39,9 +39,23 @@ const SUGGESTIONS = [
   "Smart home lighting",
 ]
 
+const PRICE_RANGES: {
+  value: string
+  label: string
+  min?: number
+  max?: number
+}[] = [
+  { value: "any", label: "Any price" },
+  { value: "0-50", label: "Under $50", max: 50 },
+  { value: "50-100", label: "$50 – $100", min: 50, max: 100 },
+  { value: "100-250", label: "$100 – $250", min: 100, max: 250 },
+  { value: "250", label: "$250+", min: 250 },
+]
+
 export function ProductSearch() {
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState<string>("all")
+  const [priceRange, setPriceRange] = useState<string>("any")
   const [results, setResults] = useState<Product[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -72,6 +86,7 @@ export function ProductSearch() {
     if (reset) setLastQuery(term)
 
     try {
+      const range = PRICE_RANGES.find((r) => r.value === priceRange)
       const res = await fetch("/api/products/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,6 +94,8 @@ export function ProductSearch() {
         body: JSON.stringify({
           query: term,
           category: category === "all" ? undefined : category,
+          priceMin: range?.min,
+          priceMax: range?.max,
           cursor: reset ? undefined : cursorRef.current,
         }),
       })
@@ -121,7 +138,7 @@ export function ProductSearch() {
     const t = setTimeout(() => fetchPage(true), 450)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, category])
+  }, [query, category, priceRange])
 
   async function add(product: Product) {
     if (added.has(product.id)) return
@@ -163,7 +180,7 @@ export function ProductSearch() {
           </InputGroupAddon>
         </InputGroup>
         <Select value={category} onValueChange={(v) => setCategory(v ?? "all")}>
-          <SelectTrigger className="sm:w-48">
+          <SelectTrigger className="sm:w-44">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
           <SelectContent>
@@ -172,6 +189,20 @@ export function ProductSearch() {
               {CATEGORIES.map((c) => (
                 <SelectItem key={c} value={c}>
                   {c}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <Select value={priceRange} onValueChange={(v) => setPriceRange(v ?? "any")}>
+          <SelectTrigger className="sm:w-40">
+            <SelectValue placeholder="Price" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {PRICE_RANGES.map((r) => (
+                <SelectItem key={r.value} value={r.value}>
+                  {r.label}
                 </SelectItem>
               ))}
             </SelectGroup>

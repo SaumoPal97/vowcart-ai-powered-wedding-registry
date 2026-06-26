@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server"
-import { getCurrentCouple, updateCouple } from "@/lib/repos/couples"
+import { getSession } from "@/lib/auth"
+import {
+  createCouple,
+  getCoupleByUserId,
+  getCoupleForRequest,
+  updateCouple,
+} from "@/lib/repos/couples"
 import { getRegistryItemsByCoupleId } from "@/lib/repos/registry"
 
-// GET /api/registry — current couple + their registry items
+// GET /api/registry — the request's couple (session user's, or demo) + items
 export async function GET() {
   try {
-    const couple = await getCurrentCouple()
+    const couple = await getCoupleForRequest()
     if (!couple) {
       return NextResponse.json({ error: "No registry found." }, { status: 404 })
     }
@@ -17,25 +23,63 @@ export async function GET() {
   }
 }
 
-// POST /api/registry — returns the (single-tenant) registry for the couple
-export async function POST() {
-  const couple = await getCurrentCouple()
-  if (!couple) {
-    return NextResponse.json({ error: "No couple found." }, { status: 404 })
+// Create-or-update the signed-in user's couple from the request body.
+async function upsertCouple(req: Request) {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json(
+      { error: "Please sign in to create your registry." },
+      { status: 401 },
+    )
   }
-  return NextResponse.json({ couple })
+  const body = (await req.json()) as {
+    partnerOne?: string
+    partnerTwo?: string
+    weddingDate?: string
+    location?: string
+    story?: string
+    slug?: string
+    isPublic?: boolean
+  }
+
+  const existing = await getCoupleByUserId(session.userId)
+  if (existing) {
+    const updated = await updateCouple(existing.id, body)
+    return NextResponse.json({ couple: updated })
+  }
+
+  if (!body.partnerOne?.trim() || !body.partnerTwo?.trim()) {
+    return NextResponse.json(
+      { error: "Both partner names are required." },
+      { status: 400 },
+    )
+  }
+  const created = await createCouple({
+    userId: session.userId,
+    partnerOne: body.partnerOne,
+    partnerTwo: body.partnerTwo,
+    weddingDate: body.weddingDate,
+    location: body.location,
+    story: body.story,
+    slug: body.slug,
+  })
+  return NextResponse.json({ couple: created })
 }
 
-// PATCH /api/registry — update couple / registry settings
+// POST /api/registry — create (or update) the couple for the session user
+export async function POST(req: Request) {
+  try {
+    return await upsertCouple(req)
+  } catch (err) {
+    console.error("[v0] POST /api/registry error:", err)
+    return NextResponse.json({ error: "Failed to save registry." }, { status: 500 })
+  }
+}
+
+// PATCH /api/registry — update couple / registry settings for the session user
 export async function PATCH(req: Request) {
   try {
-    const couple = await getCurrentCouple()
-    if (!couple) {
-      return NextResponse.json({ error: "No couple found." }, { status: 404 })
-    }
-    const patch = await req.json()
-    const updated = await updateCouple(couple.id, patch)
-    return NextResponse.json({ couple: updated })
+    return await upsertCouple(req)
   } catch (err) {
     console.error("[v0] PATCH /api/registry error:", err)
     return NextResponse.json({ error: "Failed to update registry." }, { status: 500 })
@@ -45,7 +89,11 @@ export async function PATCH(req: Request) {
 // DELETE /api/registry — hide the registry (set non-public)
 export async function DELETE() {
   try {
-    const couple = await getCurrentCouple()
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json({ error: "Please sign in." }, { status: 401 })
+    }
+    const couple = await getCoupleByUserId(session.userId)
     if (!couple) {
       return NextResponse.json({ error: "No couple found." }, { status: 404 })
     }

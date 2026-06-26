@@ -88,6 +88,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       coupleId: DEMO_COUPLE_ID,
     }
   }
+  // Signed in → that user's own couple (null if they haven't onboarded yet).
   if (session) {
     const { rows } = await query<{ id: string }>(
       `SELECT id FROM couples WHERE user_id = $1 LIMIT 1`,
@@ -96,10 +97,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     if (rows[0]?.id) {
       return { userId: session.userId, email: session.email, coupleId: rows[0].id }
     }
+    return null
   }
-  // Single-tenant demo: the dashboard is browsable without an explicit login
-  // (reads resolve to the first couple), so resolve mutations the same way
-  // instead of rejecting them. Honors a real session when one is present.
+  // Anonymous → the seeded demo couple, so the no-login demo keeps working.
   const { rows } = await query<{ id: string; user_id: string; email: string }>(
     `SELECT c.id, c.user_id, u.email
        FROM couples c JOIN users u ON u.id = c.user_id

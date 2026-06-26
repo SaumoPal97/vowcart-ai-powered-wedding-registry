@@ -1,15 +1,17 @@
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Sparkles } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { RegistryManager } from "@/components/dashboard/registry-manager"
 import { Button } from "@/components/ui/button"
-import { getCurrentCouple } from "@/lib/repos/couples"
+import { getCoupleForRequest } from "@/lib/repos/couples"
 import { getRegistryItemsByCoupleId } from "@/lib/repos/registry"
 
 export const dynamic = "force-dynamic"
 
 export default async function RegistryPage() {
-  const couple = await getCurrentCouple()
+  const couple = await getCoupleForRequest()
+  if (!couple) redirect("/onboarding")
   const items = await getRegistryItemsByCoupleId(couple.id)
 
   return (

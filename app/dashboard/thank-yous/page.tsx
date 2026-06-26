@@ -1,12 +1,14 @@
+import { redirect } from "next/navigation"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { ThankYouTracker } from "@/components/dashboard/thank-you-tracker"
-import { getCurrentCouple } from "@/lib/repos/couples"
+import { getCoupleForRequest } from "@/lib/repos/couples"
 import { getThankYouNotes } from "@/lib/repos/purchases"
 
 export const dynamic = "force-dynamic"
 
 export default async function ThankYousPage() {
-  const couple = await getCurrentCouple()
+  const couple = await getCoupleForRequest()
+  if (!couple) redirect("/onboarding")
   const notes = await getThankYouNotes(couple.id)
 
   return (

@@ -23,6 +23,18 @@ import { toast } from "sonner"
 
 type Phase = "details" | "lifestyle" | "size" | "building" | "result"
 
+// Mirror of the server-side slugify so the preview matches what we'll save.
+function slugify(s: string): string {
+  return (
+    s
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 140) || "our-registry"
+  )
+}
+
 export function OnboardingWizard() {
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>("details")
@@ -32,6 +44,13 @@ export function OnboardingWizard() {
   const [partnerOne, setPartnerOne] = useState("")
   const [partnerTwo, setPartnerTwo] = useState("")
   const [weddingDate, setWeddingDate] = useState("")
+  const [slug, setSlug] = useState("")
+  const [slugEdited, setSlugEdited] = useState(false)
+
+  // Auto-derive the slug from names until the user edits it manually.
+  const effectiveSlug = slugEdited
+    ? slugify(slug)
+    : slugify(`${partnerOne} and ${partnerTwo}`)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [size, setSize] = useState(50)
   const [removed, setRemoved] = useState<Set<string>>(new Set())
@@ -68,11 +87,23 @@ export function OnboardingWizard() {
   async function saveAndContinue() {
     setSaving(true)
     try {
-      await fetch("/api/registry", {
-        method: "PATCH",
+      // Create (or update) the couple first so items attach to the right slug.
+      const res = await fetch("/api/registry", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ partnerOne, partnerTwo, weddingDate }),
+        body: JSON.stringify({
+          partnerOne,
+          partnerTwo,
+          weddingDate,
+          slug: effectiveSlug,
+        }),
       })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        toast.error(data.error || "Couldn't save your registry. Please try again.")
+        setSaving(false)
+        return
+      }
       await Promise.all(
         kept.map((p) =>
           fetch("/api/registry/items", {
@@ -172,6 +203,28 @@ export function OnboardingWizard() {
                 />
                 <FieldDescription>
                   We use this for your countdown and shipping windows.
+                </FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="slug">Registry link</FieldLabel>
+                <div className="flex items-center rounded-md border border-input bg-background pl-3 focus-within:ring-2 focus-within:ring-ring">
+                  <span className="text-sm text-muted-foreground">
+                    vowcart.app/r/
+                  </span>
+                  <Input
+                    id="slug"
+                    className="border-0 px-1 shadow-none focus-visible:ring-0"
+                    placeholder="maya-and-daniel"
+                    value={effectiveSlug}
+                    onChange={(e) => {
+                      setSlugEdited(true)
+                      setSlug(e.target.value)
+                    }}
+                  />
+                </div>
+                <FieldDescription>
+                  Your shareable registry URL. Auto-filled from your names —
+                  edit it any time.
                 </FieldDescription>
               </Field>
             </FieldGroup>

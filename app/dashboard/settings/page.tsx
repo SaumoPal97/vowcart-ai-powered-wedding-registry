@@ -1,11 +1,13 @@
+import { redirect } from "next/navigation"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { SettingsForm } from "@/components/dashboard/settings-form"
-import { getCurrentCouple } from "@/lib/repos/couples"
+import { getCoupleForRequest } from "@/lib/repos/couples"
 
 export const dynamic = "force-dynamic"
 
 export default async function SettingsPage() {
-  const couple = await getCurrentCouple()
+  const couple = await getCoupleForRequest()
+  if (!couple) redirect("/onboarding")
 
   return (
     <>

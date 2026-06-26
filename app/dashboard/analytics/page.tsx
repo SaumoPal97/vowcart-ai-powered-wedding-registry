@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { Eye, QrCode, MousePointerClick, TrendingUp } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { StatCard } from "@/components/dashboard/stat-card"
@@ -17,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { formatPrice } from "@/lib/data"
 import { merchantInsights } from "@/lib/catalog"
-import { getCurrentCouple } from "@/lib/repos/couples"
+import { getCoupleForRequest } from "@/lib/repos/couples"
 import {
   getRegistryIdForCoupleId,
   getRegistryItemsByCoupleId,
@@ -28,7 +29,8 @@ import { getAnalyticsSummary } from "@/lib/services/analytics"
 export const dynamic = "force-dynamic"
 
 export default async function AnalyticsPage() {
-  const couple = await getCurrentCouple()
+  const couple = await getCoupleForRequest()
+  if (!couple) redirect("/onboarding")
   const [registryId, stats, items] = await Promise.all([
     getRegistryIdForCoupleId(couple.id),
     getRegistryStatsByCoupleId(couple.id),

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Gift, ShoppingBag, Eye, DollarSign, Sparkles } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { formatPrice, formatWeddingDate } from "@/lib/data"
-import { getCurrentCouple } from "@/lib/repos/couples"
+import { getCoupleForRequest } from "@/lib/repos/couples"
 import {
   getRegistryItemsByCoupleId,
   getRegistryIdForCoupleId,
@@ -57,7 +58,8 @@ function buildActivity(items: RegistryItem[]): ActivityEvent[] {
 export const dynamic = "force-dynamic"
 
 export default async function DashboardOverview() {
-  const couple = await getCurrentCouple()
+  const couple = await getCoupleForRequest()
+  if (!couple) redirect("/onboarding")
   const [items, registryId] = await Promise.all([
     getRegistryItemsByCoupleId(couple.id),
     getRegistryIdForCoupleId(couple.id),

@@ -44,6 +44,7 @@ export function SettingsForm({ couple }: { couple: Couple }) {
   const [weddingDate, setWeddingDate] = useState(couple.weddingDate)
   const [location, setLocation] = useState(couple.location)
   const [story, setStory] = useState(couple.story)
+  const [slug, setSlug] = useState(couple.slug)
 
   const [isPublic, setIsPublic] = useState(couple.isPublic)
   const [allowReservations, setAllowReservations] = useState(true)
@@ -62,6 +63,10 @@ export function SettingsForm({ couple }: { couple: Couple }) {
         body: JSON.stringify(patch),
       })
       if (!res.ok) throw new Error("failed")
+      const data = (await res.json().catch(() => ({}))) as {
+        couple?: { slug?: string }
+      }
+      if (data.couple?.slug) setSlug(data.couple.slug)
       toast.success("Settings saved")
       router.refresh()
     } catch {
@@ -264,15 +269,26 @@ export function SettingsForm({ couple }: { couple: Couple }) {
           <CardHeader>
             <CardTitle>Public page</CardTitle>
             <CardDescription>
-              Your registry lives at vowcart.app/r/{couple.slug}
+              Your registry lives at vowcart.app/r/{slug || couple.slug}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <Field>
               <FieldLabel htmlFor="slug">Custom URL</FieldLabel>
-              <Input id="slug" defaultValue={couple.slug} readOnly />
+              <div className="flex items-center rounded-md border border-input bg-background pl-3 focus-within:ring-2 focus-within:ring-ring">
+                <span className="text-sm text-muted-foreground">
+                  vowcart.app/r/
+                </span>
+                <Input
+                  id="slug"
+                  className="border-0 px-1 shadow-none focus-visible:ring-0"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                />
+              </div>
               <FieldDescription>
-                Your registry link, shared with guests.
+                Your registry link, shared with guests. We&apos;ll tidy it into
+                a URL-safe form and keep it unique.
               </FieldDescription>
             </Field>
             <Separator />
@@ -284,7 +300,7 @@ export function SettingsForm({ couple }: { couple: Couple }) {
             />
           </CardContent>
           <CardFooter>
-            <Button disabled={saving} onClick={() => save({ isPublic })}>
+            <Button disabled={saving} onClick={() => save({ slug, isPublic })}>
               <Save data-icon="inline-start" />
               {saving ? "Saving..." : "Save changes"}
             </Button>

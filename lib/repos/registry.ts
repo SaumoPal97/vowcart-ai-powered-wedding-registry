@@ -303,8 +303,11 @@ export async function getRegistryStatsByCoupleId(
 
 export async function getCatalog(): Promise<Product[]> {
   if (!isDbConfigured()) return catalog
-  const { rows } = await query<ItemRow>(
-    `SELECT id, title, merchant, price, rating, reviews, category, image, description
+  const { rows } = await query<
+    ItemRow & { is_sponsored: boolean; sponsored_campaign_id: string | null }
+  >(
+    `SELECT id, title, merchant, price, rating, reviews, category, image, description,
+            is_sponsored, sponsored_campaign_id
        FROM products ORDER BY id`,
   )
   if (rows.length === 0) return catalog
@@ -318,5 +321,7 @@ export async function getCatalog(): Promise<Product[]> {
     category: r.category as Product["category"],
     image: r.image,
     description: r.description,
+    isSponsored: r.is_sponsored,
+    sponsoredCampaignId: r.sponsored_campaign_id ?? undefined,
   }))
 }

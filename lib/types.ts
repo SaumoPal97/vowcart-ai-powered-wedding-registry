@@ -26,6 +26,10 @@ export interface Product {
   variantId?: string
   checkoutUrl?: string
   sellerDomain?: string
+  // Set when a merchant is paying to promote this product. Consumer surfaces
+  // MUST render a clearly-labeled "Sponsored" badge when true.
+  isSponsored?: boolean
+  sponsoredCampaignId?: string
 }
 
 export interface RegistryItem extends Product {
@@ -71,4 +75,83 @@ export interface RecommendationGroup {
   title: string
   subtitle: string
   products: Product[]
+}
+
+// ---------------------------------------------------------------------------
+// Merchant portal domain
+// ---------------------------------------------------------------------------
+
+export type MerchantPlan = "free" | "pro" | "growth"
+export type CampaignStatus = "draft" | "active" | "paused"
+
+export interface Merchant {
+  id: string
+  name: string
+  slug: string
+  website: string
+  shopifyMerchantId: string
+  plan: MerchantPlan
+  brands: string[]
+  contactName?: string
+  email?: string
+}
+
+export interface SponsoredCampaign {
+  id: string
+  merchantId: string
+  productId: string | null
+  productTitle: string
+  category: ProductCategory | string
+  status: CampaignStatus
+  budget: number
+  bid: number
+  startDate: string
+  endDate: string
+  impressions: number
+  clicks: number
+  purchases: number
+}
+
+/** Aggregated, anonymized per-product demand metrics for the merchant portal. */
+export interface MerchantProductStat {
+  productId: string
+  title: string
+  merchant: string
+  category: ProductCategory | string
+  image: string
+  price: number
+  added: number
+  purchased: number
+  conversionRate: number // 0-100
+  isSponsored: boolean
+}
+
+export interface MerchantCategoryStat {
+  category: string
+  added: number
+  purchased: number
+  conversionRate: number // 0-100
+  avgPrice: number
+  growth: number // % vs. prior period (demo signal)
+}
+
+export interface MerchantDashboardSummary {
+  productsAdded: number
+  productsPurchased: number
+  conversionRate: number // 0-100
+  avgGiftPrice: number
+  sponsoredImpressions: number
+  sponsoredClicks: number
+  sponsoredPurchases: number
+  sponsoredCtr: number // 0-100
+}
+
+export interface FeaturedCollection {
+  id: string
+  title: string
+  description: string
+  slots: number
+  filled: number
+  priceFrom: number
+  categories: (ProductCategory | string)[]
 }

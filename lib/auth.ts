@@ -4,6 +4,9 @@ import { cookies } from "next/headers"
 import { isDbConfigured, query } from "@/lib/db"
 
 const SESSION_COOKIE = "vowcart_session"
+// Merchant sessions use a SEPARATE cookie so the two products never share an
+// identity: a couple login can't reach merchant routes and vice-versa.
+const MERCHANT_SESSION_COOKIE = "vowcart_merchant_session"
 const SECRET = process.env.SESSION_SECRET || "vowcart-dev-secret-change-me"
 
 // --- password hashing (scrypt) --------------------------------------------
@@ -140,4 +143,56 @@ export async function createUser(input: {
     [input.email.toLowerCase(), input.name, hashPassword(input.password)],
   )
   return rows[0]
+}
+
+// ---------------------------------------------------------------------------
+// Merchant authentication (separate identity from the couple/guest app)
+// ---------------------------------------------------------------------------
+
+function serializeMerchant(payload: {
+  merchantUserId: string
+  merchantId: string
+  email: string
+}): string {
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url")
+  return `${body}.${sign(body)}`
+}
+
+function deserializeMerchant(
+  token: string,
+): { merchantUserId: string; merchantId: string; email: string } | null {
+  const [body, sig] = token.split(".")
+  if (!body || !sig) return null
+  if (sign(body) !== sig) return null
+  try {
+    return JSON.parse(Buffer.from(body, "base64url").toString())
+  } catch {
+    return null
+  }
+}
+
+export async function createMerchantSession(payload: {
+  merchantUserId: string
+  merchantId: string
+  email: string
+}) {
+  const store = await cookies()
+  store.set(MERCHANT_SESSION_COOKIE, serializeMerchant(payload), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  })
+}
+
+export async function destroyMerchantSession() {
+  const store = await cookies()
+  store.delete(MERCHANT_SESSION_COOKIE)
+}
+
+export async function getMerchantSession() {
+  const store = await cookies()
+  const token = store.get(MERCHANT_SESSION_COOKIE)?.value
+  return token ? deserializeMerchant(token) : null
 }

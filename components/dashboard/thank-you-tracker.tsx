@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Check, Mail, Sparkles, Send } from "lucide-react"
+import { Check, Mail, Sparkles, Send, Copy, Download } from "lucide-react"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   Card,
   CardContent,
@@ -39,9 +40,11 @@ export function ThankYouTracker({
   initialNotes: ThankYouNote[]
   coupleNames: string
 }) {
+  type Tone = "warm" | "formal" | "playful" | "short"
   const [notes, setNotes] = useState<ThankYouNote[]>(initialNotes)
   const [active, setActive] = useState<ThankYouNote | null>(null)
   const [draft, setDraft] = useState("")
+  const [tone, setTone] = useState<Tone>("warm")
   const [generating, setGenerating] = useState(false)
   const [sending, setSending] = useState(false)
 
@@ -52,17 +55,58 @@ export function ThankYouTracker({
   function openNote(note: ThankYouNote) {
     setActive(note)
     setDraft("")
+    setTone("warm")
   }
 
-  function generateDraft() {
+  async function generateDraft() {
     if (!active) return
     setGenerating(true)
-    setTimeout(() => {
-      setDraft(
-        `Dear ${active.purchasedBy},\n\nThank you so much for the ${active.gift}! It means the world to us that you're celebrating this new chapter with us. We can't wait to put it to good use in our new home, and we feel so lucky to have you in our lives.\n\nWith love and gratitude,\n${coupleNames}`,
-      )
+    try {
+      const res = await fetch("/api/thank-you/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          coupleNames,
+          guestName: active.purchasedBy,
+          gift: active.gift,
+          tone,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setDraft(data.note)
+    } catch {
+      toast.error("Couldn't draft a note. Please try again.")
+    } finally {
       setGenerating(false)
-    }, 900)
+    }
+  }
+
+  async function copyDraft() {
+    if (!draft.trim()) return
+    try {
+      await navigator.clipboard.writeText(draft)
+      toast.success("Note copied to clipboard")
+    } catch {
+      toast.error("Couldn't copy. Please select and copy manually.")
+    }
+  }
+
+  function exportCsv() {
+    const header = ["Gift", "Purchased by", "Email", "Purchase date", "Thank-you status"]
+    const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`
+    const rows = notes.map((n) =>
+      [n.gift, n.purchasedBy, n.email, n.purchaseDate, n.status].map(escape).join(","),
+    )
+    const csv = [header.map(escape).join(","), ...rows].join("\n")
+    const blob = new Blob([csv], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "vowcart-thank-yous.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success("Exported thank-you list")
   }
 
   async function markSent() {
@@ -104,11 +148,17 @@ export function ThankYouTracker({
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Gift log</CardTitle>
-          <CardDescription>
-            Every gift received, with one-tap AI-assisted thank-you notes.
-          </CardDescription>
+        <CardHeader className="flex-row items-start justify-between">
+          <div className="flex flex-col gap-1.5">
+            <CardTitle>Gift log</CardTitle>
+            <CardDescription>
+              Every gift received, with one-tap AI-assisted thank-you notes.
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={exportCsv}>
+            <Download data-icon="inline-start" />
+            Export CSV
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -178,14 +228,41 @@ export function ThankYouTracker({
               For the {active?.gift}. Write your own or let AI draft one.
             </DialogDescription>
           </DialogHeader>
-          <Button
-            variant="secondary"
-            onClick={generateDraft}
-            disabled={generating}
-          >
-            <Sparkles data-icon="inline-start" />
-            {generating ? "Drafting..." : "Generate with AI"}
-          </Button>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Tone</span>
+              <ToggleGroup
+                value={[tone]}
+                onValueChange={(v) => v[0] && setTone(v[0] as Tone)}
+                variant="outline"
+                className="flex-wrap"
+              >
+                <ToggleGroupItem value="warm">Warm</ToggleGroupItem>
+                <ToggleGroupItem value="formal">Formal</ToggleGroupItem>
+                <ToggleGroupItem value="playful">Playful</ToggleGroupItem>
+                <ToggleGroupItem value="short">Short</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={generateDraft}
+                disabled={generating}
+              >
+                <Sparkles data-icon="inline-start" />
+                {generating ? "Drafting..." : "Generate with AI"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={copyDraft}
+                disabled={!draft.trim()}
+              >
+                <Copy data-icon="inline-start" />
+                Copy
+              </Button>
+            </div>
+          </div>
           <Textarea
             rows={9}
             placeholder="Write your heartfelt thank-you note..."

@@ -9,6 +9,7 @@ import { ProductCard } from "@/components/registry/product-card"
 import { StatusBadge, PriorityBadge } from "@/components/registry/badges"
 import { Countdown } from "@/components/registry/countdown"
 import { GiftDialog } from "@/components/registry/gift-dialog"
+import { GiftFinder } from "@/components/registry/gift-finder"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -61,7 +62,7 @@ export function PublicRegistry({
     if (status === "purchased") {
       toast.success("Thank you for your generous gift!")
     } else {
-      toast.success("Gift reserved for 48 hours")
+      toast.success("Gift reserved for 15 minutes")
     }
   }
 
@@ -133,7 +134,7 @@ export function PublicRegistry({
           <Progress value={completion} />
         </div>
 
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <ToggleGroup
             value={[filter]}
             onValueChange={(v) => v[0] && setFilter(v[0] as Filter)}
@@ -143,6 +144,7 @@ export function PublicRegistry({
             <ToggleGroupItem value="available">Available</ToggleGroupItem>
             <ToggleGroupItem value="must-have">Most wanted</ToggleGroupItem>
           </ToggleGroup>
+          <GiftFinder slug={slug} onSelect={openGift} />
         </div>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

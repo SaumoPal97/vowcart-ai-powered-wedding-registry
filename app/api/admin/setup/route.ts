@@ -34,6 +34,7 @@ export async function POST(request: Request) {
       "001-init-schema.sql",
       "002-ucp-fields.sql",
       "003-preferences.sql",
+      "004-merchant.sql",
     ]
     for (const file of migrations) {
       const sql = await readFile(

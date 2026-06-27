@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import confetti from "canvas-confetti"
 import { Check, Clock, ShoppingBag, ExternalLink, Loader2 } from "lucide-react"
@@ -46,6 +46,22 @@ export function GiftDialog({
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
+  // 15-minute reservation window (in seconds remaining).
+  const [secondsLeft, setSecondsLeft] = useState(15 * 60)
+
+  // Tick the reservation countdown while a reserved gift is shown.
+  useEffect(() => {
+    if (!(step === "success" && intent === "reserve")) return
+    setSecondsLeft(15 * 60)
+    const id = setInterval(() => {
+      setSecondsLeft((s) => (s <= 1 ? 0 : s - 1))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [step, intent])
+
+  const timer = `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(
+    secondsLeft % 60,
+  ).padStart(2, "0")}`
 
   function reset() {
     setStep("details")
@@ -222,7 +238,7 @@ export function GiftDialog({
               <DialogDescription>
                 {intent === "buy"
                   ? "We'll let the couple know it's from you."
-                  : "We'll hold this gift for 48 hours so no one else buys it."}
+                  : "We'll hold this gift for 15 minutes so no one else can buy it while you check out."}
               </DialogDescription>
             </DialogHeader>
             <FieldGroup>
@@ -359,9 +375,18 @@ export function GiftDialog({
               <DialogDescription>
                 {intent === "buy"
                   ? `Thank you, ${name}. The couple will be thrilled.`
-                  : `We're holding the ${item.title} for you for 48 hours.`}
+                  : `Reserved for you, ${name}. Complete your purchase before the timer runs out.`}
               </DialogDescription>
             </DialogHeader>
+            {intent === "reserve" && (
+              <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/50 py-3 text-sm">
+                <Clock className="size-4 text-accent" />
+                <span className="text-muted-foreground">Reserved for you —</span>
+                <span className="font-mono font-semibold tabular-nums text-foreground">
+                  {timer}
+                </span>
+              </div>
+            )}
             {intent === "reserve" && (
               <Button
                 variant="outline"

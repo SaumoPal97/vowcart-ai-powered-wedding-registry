@@ -1,4 +1,11 @@
-import type { Couple, Product, ProductCategory } from "./types"
+import type {
+  Couple,
+  FeaturedCollection,
+  Merchant,
+  Product,
+  ProductCategory,
+  SponsoredCampaign,
+} from "./types"
 
 // ---------------------------------------------------------------------------
 // Seed catalog — the source of truth for the Prisma/SQL seed script AND the
@@ -581,6 +588,214 @@ export const merchantInsights = {
   ],
   trendingBrands: ["Our Place", "Brooklinen", "Away", "East Fork", "Hydro Flask"],
 }
+
+// ---------------------------------------------------------------------------
+// Merchant portal seed data.
+//
+// A merchant account represents one or more catalog brands. Demand analytics
+// in the merchant portal aggregate (anonymized) over every registry that
+// contains products from these brands. The demo merchant is kitchen-led so the
+// dashboard has rich, real numbers even in seed-fallback mode.
+// ---------------------------------------------------------------------------
+
+export const DEMO_MERCHANT_ID = "00000000-0000-0000-0000-0000000d0001"
+export const DEMO_MERCHANT_USER_ID = "00000000-0000-0000-0000-0000000e0001"
+
+export const demoMerchant: Merchant = {
+  id: DEMO_MERCHANT_ID,
+  name: "Hearth & Co.",
+  slug: "hearth-and-co",
+  website: "https://hearthandco.example",
+  shopifyMerchantId: "hearth-and-co.myshopify.com",
+  plan: "growth",
+  // Catalog brands this account sells under.
+  brands: [
+    "KitchenAid",
+    "Le Creuset",
+    "Our Place",
+    "Breville",
+    "Vitamix",
+    "Nespresso",
+    "Wüsthof",
+    "Smeg",
+  ],
+  contactName: "Ava Mercer",
+  email: "merchant@vowcart.app",
+}
+
+export const DEMO_MERCHANT_USER = {
+  id: DEMO_MERCHANT_USER_ID,
+  merchantId: DEMO_MERCHANT_ID,
+  email: "merchant@vowcart.app",
+  name: "Ava Mercer",
+  password: "vowcart-demo",
+}
+
+// Sponsored campaigns owned by the demo merchant. Performance counters are
+// seeded so the portal renders without live ad traffic.
+export const seedSponsoredCampaigns: SponsoredCampaign[] = [
+  {
+    id: "00000000-0000-0000-0000-0000000f0001",
+    merchantId: DEMO_MERCHANT_ID,
+    productId: "p7",
+    productTitle: "Barista Express Espresso Machine",
+    category: "Kitchen",
+    status: "active",
+    budget: 2500,
+    bid: 1.4,
+    startDate: "2026-06-01",
+    endDate: "2026-08-31",
+    impressions: 18420,
+    clicks: 1640,
+    purchases: 96,
+  },
+  {
+    id: "00000000-0000-0000-0000-0000000f0002",
+    merchantId: DEMO_MERCHANT_ID,
+    productId: "p4",
+    productTitle: "Round Enameled Dutch Oven, 5.5 Qt",
+    category: "Kitchen",
+    status: "active",
+    budget: 1800,
+    bid: 1.1,
+    startDate: "2026-05-15",
+    endDate: "2026-09-15",
+    impressions: 12980,
+    clicks: 1120,
+    purchases: 71,
+  },
+  {
+    id: "00000000-0000-0000-0000-0000000f0003",
+    merchantId: DEMO_MERCHANT_ID,
+    productId: "p8",
+    productTitle: "Always Pan 2.0",
+    category: "Kitchen",
+    status: "paused",
+    budget: 1200,
+    bid: 0.9,
+    startDate: "2026-04-01",
+    endDate: "2026-06-30",
+    impressions: 8640,
+    clicks: 690,
+    purchases: 38,
+  },
+  {
+    id: "00000000-0000-0000-0000-0000000f0004",
+    merchantId: DEMO_MERCHANT_ID,
+    productId: "p17",
+    productTitle: "Ascent Series High-Speed Blender",
+    category: "Kitchen",
+    status: "draft",
+    budget: 1500,
+    bid: 1.0,
+    startDate: "2026-07-01",
+    endDate: "2026-10-01",
+    impressions: 0,
+    clicks: 0,
+    purchases: 0,
+  },
+]
+
+// Product ids the demo merchant is actively promoting (drives the consumer
+// "Sponsored" badge in product discovery + AI recommendations).
+export const sponsoredProductIds: Record<string, string> = (() => {
+  const map: Record<string, string> = {}
+  for (const c of seedSponsoredCampaigns) {
+    if (c.status === "active" && c.productId) map[c.productId] = c.id
+  }
+  return map
+})()
+
+export function annotateSponsored(products: Product[]): Product[] {
+  return products.map((p) =>
+    sponsoredProductIds[p.id]
+      ? { ...p, isSponsored: true, sponsoredCampaignId: sponsoredProductIds[p.id] }
+      : p,
+  )
+}
+
+// Curated, paid-placement collections sold through the merchant portal.
+export const featuredCollections: FeaturedCollection[] = [
+  {
+    id: "best-kitchen",
+    title: "Best Kitchen Gifts",
+    description: "The most-added cookware and appliances on VowCart.",
+    slots: 8,
+    filled: 6,
+    priceFrom: 750,
+    categories: ["Kitchen"],
+  },
+  {
+    id: "coffee-lovers",
+    title: "Coffee Lover Essentials",
+    description: "Espresso machines, grinders, and everything for the daily ritual.",
+    slots: 6,
+    filled: 4,
+    priceFrom: 600,
+    categories: ["Kitchen", "Smart Home"],
+  },
+  {
+    id: "first-apartment",
+    title: "First Apartment Favorites",
+    description: "Starter staples for couples setting up their first home.",
+    slots: 10,
+    filled: 7,
+    priceFrom: 500,
+    categories: ["Kitchen", "Bedroom", "Bathroom"],
+  },
+  {
+    id: "under-100",
+    title: "Gifts Under $100",
+    description: "High-converting, guest-friendly price point.",
+    slots: 12,
+    filled: 9,
+    priceFrom: 400,
+    categories: ["Dining", "Bathroom", "Home Decor"],
+  },
+  {
+    id: "premium",
+    title: "Premium Wedding Gifts",
+    description: "Heirloom-grade pieces for generous guests.",
+    slots: 6,
+    filled: 3,
+    priceFrom: 1200,
+    categories: ["Kitchen", "Dining"],
+  },
+  {
+    id: "travel",
+    title: "Travel Essentials",
+    description: "Luggage and gear for honeymooners and frequent flyers.",
+    slots: 6,
+    filled: 5,
+    priceFrom: 550,
+    categories: ["Travel"],
+  },
+]
+
+// Demo-only AI insights surfaced inside the merchant portal (recommendations,
+// never couple-facing). Framed as ROI-oriented guidance for the merchant.
+export const merchantAiInsights: { title: string; detail: string }[] = [
+  {
+    title: "Bundle espresso + grinder",
+    detail:
+      "Your Barista Express is added alongside a coffee grinder in 41% of registries. A bundled sponsored placement could lift attach rate.",
+  },
+  {
+    title: "Cookware over-indexes",
+    detail:
+      "Your Dutch oven converts at 38% — well above the 24% Kitchen category average. Consider raising its sponsored bid.",
+  },
+  {
+    title: "Sweet spot $75–$150",
+    detail:
+      "Products priced $75–$150 are converting best this month across your catalog. Two of your items sit just above this band.",
+  },
+  {
+    title: "Dining demand rising",
+    detail:
+      "Sponsored Dining placements are seeing higher add rates than Decor. You have no active Dining campaign yet.",
+  },
+]
 
 export const seedActivity = [
   {

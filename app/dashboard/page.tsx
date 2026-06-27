@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Gift, ShoppingBag, Eye, DollarSign, Sparkles } from "lucide-react"
+import { Gift, ShoppingBag, Clock, DollarSign, Sparkles } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { ActivityFeed } from "@/components/dashboard/activity-feed"
@@ -17,11 +17,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { formatPrice, formatWeddingDate } from "@/lib/data"
 import { getCoupleForRequest } from "@/lib/repos/couples"
-import {
-  getRegistryItemsByCoupleId,
-  getRegistryIdForCoupleId,
-} from "@/lib/repos/registry"
-import { getAnalyticsSummary } from "@/lib/services/analytics"
+import { getRegistryItemsByCoupleId } from "@/lib/repos/registry"
 import type { ActivityEvent, RegistryItem } from "@/lib/types"
 
 function buildActivity(items: RegistryItem[]): ActivityEvent[] {
@@ -60,11 +56,7 @@ export const dynamic = "force-dynamic"
 export default async function DashboardOverview() {
   const couple = await getCoupleForRequest()
   if (!couple) redirect("/onboarding")
-  const [items, registryId] = await Promise.all([
-    getRegistryItemsByCoupleId(couple.id),
-    getRegistryIdForCoupleId(couple.id),
-  ])
-  const summary = await getAnalyticsSummary(registryId ?? "unknown")
+  const items = await getRegistryItemsByCoupleId(couple.id)
 
   const total = items.length
   const purchased = items.filter((i) => i.status === "purchased")
@@ -111,10 +103,10 @@ export default async function DashboardOverview() {
             trend={`${completion}% complete`}
           />
           <StatCard
-            label="Registry views"
-            value={summary.totalViews.toLocaleString()}
-            icon={Eye}
-            hint={`${summary.qrScans.toLocaleString()} QR scans`}
+            label="Currently reserved"
+            value={String(reserved.length)}
+            icon={Clock}
+            hint="Held for guests checking out"
           />
           <StatCard
             label="Value claimed"

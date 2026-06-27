@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { searchCatalog, isUcpEnabled } from "@/lib/services/ucp"
-import { catalog, CATEGORIES } from "@/lib/catalog"
+import { annotateSponsored, catalog, CATEGORIES } from "@/lib/catalog"
 import type { Product, ProductCategory } from "@/lib/types"
 
 export const maxDuration = 30
@@ -48,6 +48,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 })
   }
 
+  // Sponsored placements: matching promoted seed products surface at the top of
+  // discovery, clearly labeled. Only on the first page (no cursor).
+  function sponsoredMatches(): Product[] {
+    if (cursor) return []
+    const q = query.trim().toLowerCase()
+    return annotateSponsored(catalog)
+      .filter((p) => p.isSponsored)
+      .filter((p) => !category || p.category === category)
+      .filter(
+        (p) =>
+          !q ||
+          p.title.toLowerCase().includes(q) ||
+          p.merchant.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q),
+      )
+      .filter(
+        (p) =>
+          (priceMin == null || p.price >= priceMin) &&
+          (priceMax == null || p.price <= priceMax),
+      )
+      .slice(0, 2)
+  }
+
   if (isUcpEnabled() && query) {
     try {
       const result = await searchCatalog(query, {
@@ -58,8 +81,16 @@ export async function POST(request: Request) {
         priceMax,
       })
       if (result.products.length > 0) {
+        const sponsored = sponsoredMatches()
+        const have = new Set(sponsored.map((p) => p.title.trim().toLowerCase()))
+        const merged = [
+          ...sponsored,
+          ...result.products.filter(
+            (p) => !have.has(p.title.trim().toLowerCase()),
+          ),
+        ]
         return NextResponse.json({
-          products: result.products,
+          products: merged,
           cursor: result.cursor,
           hasNextPage: result.hasNextPage,
           totalCount: result.totalCount,
@@ -70,9 +101,12 @@ export async function POST(request: Request) {
       console.error("[v0] UCP search failed, falling back to seed:", err)
     }
   }
-  // Seed fallback is a single page (no cursor).
+  // Seed fallback is a single page (no cursor). Sponsored products surface
+  // first, each clearly labeled on the consumer card.
+  const seed = annotateSponsored(seedSearch(query, category, priceMin, priceMax))
+  seed.sort((a, b) => Number(b.isSponsored ?? false) - Number(a.isSponsored ?? false))
   return NextResponse.json({
-    products: seedSearch(query, category, priceMin, priceMax),
+    products: seed,
     cursor: null,
     hasNextPage: false,
     source: "seed",

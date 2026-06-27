@@ -10,10 +10,12 @@ export function FindGifts({
   groups,
   coupleNames,
   defaultTab = "search",
+  recsSource,
 }: {
   groups: RecommendationGroup[]
   coupleNames: string
   defaultTab?: "search" | "recommendations"
+  recsSource?: "cache" | "ai" | "ucp" | "fallback"
 }) {
   return (
     <Tabs defaultValue={defaultTab} className="gap-6">
@@ -35,7 +37,12 @@ export function FindGifts({
       <TabsContent value="recommendations">
         {/* Groups are pre-filtered server-side to exclude registry items, so
             nothing here is already added — pass an empty baseline. */}
-        <Recommendations groups={groups} coupleNames={coupleNames} alreadyAdded={[]} />
+        <Recommendations
+          groups={groups}
+          coupleNames={coupleNames}
+          alreadyAdded={[]}
+          source={recsSource}
+        />
       </TabsContent>
     </Tabs>
   )

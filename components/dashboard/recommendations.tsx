@@ -21,10 +21,12 @@ export function Recommendations({
   groups,
   coupleNames,
   alreadyAdded,
+  source,
 }: {
   groups: RecommendationGroup[]
   coupleNames: string
   alreadyAdded: string[]
+  source?: "cache" | "ai" | "ucp" | "fallback"
 }) {
   // Track added items by title (registry items don't expose catalog ids).
   const [added, setAdded] = useState<Set<string>>(new Set(alreadyAdded))
@@ -79,10 +81,19 @@ export function Recommendations({
     <div className="flex flex-col gap-10">
       <Alert>
         <Sparkles />
-        <AlertTitle>Personalized for {coupleNames}</AlertTitle>
+        <AlertTitle className="flex items-center gap-2">
+          Personalized for {coupleNames}
+          {source === "ai" && (
+            <Badge variant="secondary" className="gap-1">
+              <Sparkles className="size-3" />
+              AI-curated
+            </Badge>
+          )}
+        </AlertTitle>
         <AlertDescription>
-          These picks are based on your lifestyle answers and what similar
-          couples loved. New suggestions appear as your registry grows.
+          {source === "ai"
+            ? "An AI curator designed these themes from your lifestyle answers, then pulled real products from Shopify merchants. New picks appear as your registry grows."
+            : "These picks are based on your lifestyle answers and what similar couples loved. New suggestions appear as your registry grows."}
         </AlertDescription>
       </Alert>
 

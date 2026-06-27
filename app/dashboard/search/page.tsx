@@ -18,7 +18,7 @@ export default async function SearchPage({
   const couple = await getCoupleForRequest()
   if (!couple) redirect("/onboarding")
 
-  const [{ groups }, items] = await Promise.all([
+  const [{ groups, source }, items] = await Promise.all([
     getRecommendations({}),
     getRegistryItemsByCoupleId(couple.id),
   ])
@@ -45,6 +45,7 @@ export default async function SearchPage({
           groups={filtered}
           coupleNames={`${couple.partnerOne} & ${couple.partnerTwo}`}
           defaultTab={defaultTab}
+          recsSource={source}
         />
       </div>
     </>

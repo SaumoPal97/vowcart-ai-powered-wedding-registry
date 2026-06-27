@@ -1,6 +1,10 @@
 import "server-only"
+import { generateText } from "ai"
 import { annotateSponsored, catalog } from "@/lib/catalog"
+import { isAiEnabled } from "./recommendations"
 import type { Product, ProductCategory, RegistryItem } from "@/lib/types"
+
+const AI_MODEL = process.env.AI_GATEWAY_MODEL || "openai/gpt-4o-mini"
 
 // ---------------------------------------------------------------------------
 // AI Registry Copilot — an *editing* assistant (not analytics). It interprets a
@@ -146,4 +150,133 @@ export function buildProposal(
   }
 
   return { reply, add, remove }
+}
+
+// --- LLM-backed planning ---------------------------------------------------
+
+// Extract a JSON object from a (possibly fenced) model response.
+function parseJson(text: string): unknown {
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/, "")
+    .trim()
+  const start = cleaned.indexOf("{")
+  const end = cleaned.lastIndexOf("}")
+  if (start === -1 || end === -1) return null
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1))
+  } catch {
+    return null
+  }
+}
+
+function matchCatalogByTitle(title: string, taken: Set<string>): Product | null {
+  const t = title.trim().toLowerCase()
+  let p = catalog.find((c) => c.title.trim().toLowerCase() === t)
+  if (!p) p = catalog.find((c) => c.title.toLowerCase().includes(t) || t.includes(c.title.toLowerCase()))
+  if (!p || taken.has(p.title.trim().toLowerCase())) return null
+  return p
+}
+
+function matchItemByTitle(title: string, items: CopilotItem[]): CopilotItem | null {
+  const t = title.trim().toLowerCase()
+  return (
+    items.find((i) => i.title.trim().toLowerCase() === t) ??
+    items.find(
+      (i) => i.title.toLowerCase().includes(t) || t.includes(i.title.toLowerCase()),
+    ) ??
+    null
+  )
+}
+
+/** Ask the model to choose concrete add/remove titles, grounded in real data. */
+async function planWithAi(
+  message: string,
+  items: CopilotItem[],
+): Promise<CopilotProposal | null> {
+  const have = new Set(items.map((i) => i.title.trim().toLowerCase()))
+  const addable = catalog.filter((p) => !have.has(p.title.trim().toLowerCase()))
+  const registryList = items
+    .filter((i) => i.status === "available")
+    .map((i) => `- ${i.title} ($${i.price}, ${i.category}, ${i.priority})`)
+    .join("\n")
+  const catalogList = addable
+    .map((p) => `- ${p.title} ($${p.price}, ${p.category})`)
+    .join("\n")
+
+  try {
+    const { text } = await generateText({
+      model: AI_MODEL,
+      maxRetries: 2,
+      system:
+        "You are an AI wedding registry editing copilot. Interpret the couple's " +
+        "instruction and decide which gifts to add and/or remove. Reply with ONLY " +
+        'valid JSON: {"reply":string,"addTitles":string[],"removeTitles":string[]}. ' +
+        "addTitles MUST be chosen verbatim from the AVAILABLE CATALOG. removeTitles " +
+        "MUST be chosen verbatim from the CURRENT REGISTRY. Pick 0–5 of each — only " +
+        "what genuinely matches the request. Keep reply to one friendly sentence.",
+      prompt:
+        `Instruction: ${message}\n\n` +
+        `CURRENT REGISTRY (removable):\n${registryList || "(empty)"}\n\n` +
+        `AVAILABLE CATALOG (addable):\n${catalogList}`,
+    })
+    const parsed = parseJson(text) as {
+      reply?: string
+      addTitles?: unknown
+      removeTitles?: unknown
+    } | null
+    if (!parsed) return null
+
+    const taken = new Set<string>()
+    const add: Product[] = []
+    if (Array.isArray(parsed.addTitles)) {
+      for (const t of parsed.addTitles.slice(0, 5)) {
+        if (typeof t !== "string") continue
+        const p = matchCatalogByTitle(t, taken)
+        if (p) {
+          taken.add(p.title.trim().toLowerCase())
+          add.push(p)
+        }
+      }
+    }
+    const remove: CopilotProposal["remove"] = []
+    const removedIds = new Set<string>()
+    if (Array.isArray(parsed.removeTitles)) {
+      for (const t of parsed.removeTitles.slice(0, 8)) {
+        if (typeof t !== "string") continue
+        const i = matchItemByTitle(t, items)
+        if (i && i.status === "available" && !removedIds.has(i.id)) {
+          removedIds.add(i.id)
+          remove.push({ id: i.id, title: i.title, reason: "Matches your request" })
+        }
+      }
+    }
+    if (!add.length && !remove.length) return null
+    return {
+      reply:
+        (typeof parsed.reply === "string" && parsed.reply.trim()) ||
+        "Here are the changes I'd suggest — review and apply the ones you like.",
+      add: annotateSponsored(add),
+      remove,
+    }
+  } catch (err) {
+    console.error("[v0] copilot AI planning failed:", err)
+    return null
+  }
+}
+
+/**
+ * Public entry point: try the LLM planner, fall back to the deterministic rule
+ * engine when AI is disabled or returns nothing usable.
+ */
+export async function proposeChanges(
+  message: string,
+  items: CopilotItem[],
+): Promise<CopilotProposal> {
+  if (isAiEnabled()) {
+    const ai = await planWithAi(message, items)
+    if (ai) return ai
+  }
+  return buildProposal(message, items)
 }

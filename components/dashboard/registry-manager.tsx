@@ -1,8 +1,9 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Search, Trash2, Star, Gift } from "lucide-react"
+import { Search, Trash2, Star, Gift, RefreshCw } from "lucide-react"
 import { ProductCard } from "@/components/registry/product-card"
+import { ReplaceProductDialog } from "@/components/dashboard/replace-product-dialog"
 import { StatusBadge, PriorityBadge } from "@/components/registry/badges"
 import { Button } from "@/components/ui/button"
 import {
@@ -34,20 +35,33 @@ export function RegistryManager({
   const [items, setItems] = useState<RegistryItem[]>(initialItems)
   const [filter, setFilter] = useState<Filter>("all")
   const [category, setCategory] = useState<string>("all")
+  const [priority, setPriority] = useState<string>("all")
   const [query, setQuery] = useState("")
+  const [replaceItem, setReplaceItem] = useState<RegistryItem | null>(null)
+  const [replaceOpen, setReplaceOpen] = useState(false)
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
       const matchesStatus = filter === "all" || item.status === filter
       const matchesCategory =
         category === "all" || item.category === category
+      const matchesPriority = priority === "all" || item.priority === priority
       const matchesQuery =
         !query ||
         item.title.toLowerCase().includes(query.toLowerCase()) ||
         item.merchant.toLowerCase().includes(query.toLowerCase())
-      return matchesStatus && matchesCategory && matchesQuery
+      return matchesStatus && matchesCategory && matchesPriority && matchesQuery
     })
-  }, [items, filter, category, query])
+  }, [items, filter, category, priority, query])
+
+  function openReplace(item: RegistryItem) {
+    setReplaceItem(item)
+    setReplaceOpen(true)
+  }
+
+  function handleReplaced(oldId: string, newItem: RegistryItem) {
+    setItems((prev) => prev.map((i) => (i.id === oldId ? newItem : i)))
+  }
 
   async function removeItem(id: string) {
     const snapshot = items
@@ -140,6 +154,18 @@ export function RegistryManager({
               </SelectGroup>
             </SelectContent>
           </Select>
+          <Select value={priority} onValueChange={(v) => setPriority(v ?? "all")}>
+            <SelectTrigger className="sm:w-40">
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="all">All priorities</SelectItem>
+                <SelectItem value="must-have">Must Have</SelectItem>
+                <SelectItem value="nice-to-have">Nice to Have</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -185,6 +211,15 @@ export function RegistryManager({
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={() => openReplace(item)}
+                      disabled={item.status !== "available"}
+                      aria-label="Replace gift"
+                    >
+                      <RefreshCw />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => removeItem(item.id)}
                       disabled={item.status === "purchased"}
                       aria-label="Remove gift"
@@ -204,6 +239,13 @@ export function RegistryManager({
         value{" "}
         {formatPrice(items.reduce((sum, i) => sum + i.price, 0))}
       </p>
+
+      <ReplaceProductDialog
+        item={replaceItem}
+        open={replaceOpen}
+        onOpenChange={setReplaceOpen}
+        onReplaced={handleReplaced}
+      />
     </div>
   )
 }

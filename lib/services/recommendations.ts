@@ -1,6 +1,5 @@
 import "server-only"
-import { generateObject } from "ai"
-import { z } from "zod"
+import { generateText } from "ai"
 import { catalog } from "@/lib/catalog"
 import type { Product, ProductCategory, RecommendationGroup } from "@/lib/types"
 import { isUcpEnabled, searchCatalog } from "./ucp"
@@ -126,58 +125,91 @@ async function curateWithUcp(
   }
 }
 
-// Structured "gift plan" the model returns: themed groups, each with a
-// catalog search phrase we then run against Shopify UCP for real products.
-const GiftPlanSchema = z.object({
-  groups: z
-    .array(
-      z.object({
-        title: z
-          .string()
-          .describe("Short, warm group heading, e.g. 'For the home chefs'"),
-        subtitle: z
-          .string()
-          .describe("One short sentence explaining the theme"),
-        category: z.enum(PRODUCT_CATEGORIES),
-        query: z
-          .string()
-          .describe(
-            "A specific product search phrase for a real shopping catalog, " +
-              "e.g. 'enameled cast iron dutch oven' — no brand names required",
-          ),
-      }),
-    )
-    .min(3)
-    .max(6),
-})
+// A themed group the model plans: a heading + a catalog search phrase we then
+// run against Shopify UCP for real products.
+interface PlannedGroup {
+  title: string
+  subtitle: string
+  category: ProductCategory
+  query: string
+}
+
+// Case-insensitively map a model-provided category onto an allowed value.
+function coerceCategory(raw: unknown): ProductCategory | null {
+  if (typeof raw !== "string") return null
+  const hit = PRODUCT_CATEGORIES.find(
+    (c) => c.toLowerCase() === raw.trim().toLowerCase(),
+  )
+  return hit ?? null
+}
+
+// Defensively pull a gift plan out of the model's free-text JSON response.
+// Small models can't reliably satisfy tool/structured-output mode, so we
+// prompt for JSON and validate/coerce here instead of trusting a schema.
+function parsePlan(text: string): PlannedGroup[] | null {
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/, "")
+    .trim()
+  const start = cleaned.indexOf("{")
+  const end = cleaned.lastIndexOf("}")
+  if (start === -1 || end === -1) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(cleaned.slice(start, end + 1))
+  } catch {
+    return null
+  }
+  const rawGroups = (parsed as { groups?: unknown })?.groups
+  if (!Array.isArray(rawGroups)) return null
+
+  const groups: PlannedGroup[] = []
+  for (const g of rawGroups) {
+    const category = coerceCategory((g as { category?: unknown })?.category)
+    const query = (g as { query?: unknown })?.query
+    const title = (g as { title?: unknown })?.title
+    if (!category || typeof query !== "string" || !query.trim()) continue
+    groups.push({
+      title:
+        typeof title === "string" && title.trim() ? title.trim() : category,
+      subtitle:
+        typeof (g as { subtitle?: unknown })?.subtitle === "string"
+          ? ((g as { subtitle: string }).subtitle as string)
+          : "Tailored to the two of you",
+      category,
+      query: query.trim(),
+    })
+  }
+  return groups.length >= 3 ? groups.slice(0, 6) : null
+}
 
 // Ask the model to turn the lifestyle answers into a personalized gift plan.
-async function planWithAi(
-  q: Questionnaire,
-): Promise<z.infer<typeof GiftPlanSchema>["groups"] | null> {
+async function planWithAi(q: Questionnaire): Promise<PlannedGroup[] | null> {
   const answers = Object.entries(q)
     .filter(([k]) => k !== "size")
     .map(([k, v]) => `- ${k}: ${v}`)
     .join("\n")
 
+  const allowed = PRODUCT_CATEGORIES.map((c) => `"${c}"`).join(", ")
+
   try {
-    const { object } = await generateObject({
+    const { text } = await generateText({
       model: AI_MODEL,
-      schema: GiftPlanSchema,
-      maxRetries: 1,
+      maxRetries: 2,
       system:
-        "You are a thoughtful wedding registry curator. Design a personalized " +
-        "set of gift groups for a couple based on their lifestyle answers. " +
-        "Each group must use one of the allowed categories and a concrete, " +
-        "searchable product phrase. Tailor the picks to the couple — lean into " +
-        "what they care about and skip what they don't.",
-      prompt:
-        (answers
-          ? `The couple's lifestyle answers:\n${answers}\n\n`
-          : "The couple hasn't answered the lifestyle quiz yet; design a strong, broadly-loved starter plan.\n\n") +
-        "Produce 4-6 distinct gift groups.",
+        "You are a thoughtful wedding registry curator. Reply with ONLY valid " +
+        "JSON — no prose, no markdown code fences. Shape: " +
+        `{"groups":[{"title":string,"subtitle":string,"category":one of [${allowed}],"query":string}]}. ` +
+        "Give 4-6 distinct groups. Each \"query\" must be a concrete, searchable " +
+        "product phrase (e.g. \"enameled cast iron dutch oven\") — no brand names " +
+        "required. Tailor the picks to the couple: lean into what they care about " +
+        "and skip what they don't.",
+      prompt: answers
+        ? `The couple's lifestyle answers:\n${answers}`
+        : "The couple hasn't answered the lifestyle quiz yet; design a strong, broadly-loved starter plan.",
     })
-    return object.groups
+    return parsePlan(text)
   } catch (err) {
     console.error("[v0] AI recommendation planning failed:", err)
     return null

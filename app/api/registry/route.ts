@@ -40,6 +40,7 @@ async function upsertCouple(req: Request) {
     story?: string
     slug?: string
     isPublic?: boolean
+    preferences?: Record<string, string | number>
   }
 
   const existing = await getCoupleByUserId(session.userId)
@@ -62,6 +63,7 @@ async function upsertCouple(req: Request) {
     location: body.location,
     story: body.story,
     slug: body.slug,
+    preferences: body.preferences,
   })
   return NextResponse.json({ couple: created })
 }

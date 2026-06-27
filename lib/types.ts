@@ -45,6 +45,8 @@ export interface Couple {
   photo: string
   story: string
   isPublic: boolean
+  // Saved lifestyle questionnaire used to personalize AI recommendations.
+  preferences?: Record<string, string | number>
 }
 
 export interface ActivityEvent {

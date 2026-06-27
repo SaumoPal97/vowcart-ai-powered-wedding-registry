@@ -96,6 +96,7 @@ export function OnboardingWizard() {
           partnerTwo,
           weddingDate,
           slug: effectiveSlug,
+          preferences: { ...answers, size },
         }),
       })
       if (!res.ok) {

@@ -3,7 +3,10 @@ import { PageHeader } from "@/components/dashboard/page-header"
 import { FindGifts } from "@/components/dashboard/find-gifts"
 import { getCoupleForRequest } from "@/lib/repos/couples"
 import { getRegistryItemsByCoupleId } from "@/lib/repos/registry"
-import { getRecommendations } from "@/lib/services/recommendations"
+import {
+  getRecommendations,
+  type Questionnaire,
+} from "@/lib/services/recommendations"
 
 export const dynamic = "force-dynamic"
 
@@ -19,7 +22,8 @@ export default async function SearchPage({
   if (!couple) redirect("/onboarding")
 
   const [{ groups, source }, items] = await Promise.all([
-    getRecommendations({}),
+    // Personalize from the couple's saved lifestyle answers when we have them.
+    getRecommendations((couple.preferences ?? {}) as Questionnaire),
     getRegistryItemsByCoupleId(couple.id),
   ])
 

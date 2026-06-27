@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { buildProposal, type CopilotItem } from "@/lib/services/copilot"
+import { proposeChanges, type CopilotItem } from "@/lib/services/copilot"
 
 export const maxDuration = 30
 
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     if (!message.trim()) {
       return NextResponse.json({ error: "A message is required." }, { status: 400 })
     }
-    const proposal = buildProposal(message, items)
+    const proposal = await proposeChanges(message, items)
     return NextResponse.json(proposal)
   } catch (err) {
     console.error("[v0] POST /api/ai/copilot failed:", err)

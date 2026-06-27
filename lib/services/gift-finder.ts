@@ -1,5 +1,9 @@
 import "server-only"
+import { generateText } from "ai"
+import { isAiEnabled } from "./recommendations"
 import type { RegistryItem } from "@/lib/types"
+
+const AI_MODEL = process.env.AI_GATEWAY_MODEL || "openai/gpt-4o-mini"
 
 // ---------------------------------------------------------------------------
 // Guest Gift Finder — helps a guest pick from the registry. It ONLY ever
@@ -91,4 +95,87 @@ export function findGifts(
     reply: `Found ${items.length} available gift${items.length === 1 ? "" : "s"}.${focus}`,
     items,
   }
+}
+
+// --- LLM-backed finder -----------------------------------------------------
+
+function parseJson(text: string): unknown {
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/, "")
+    .trim()
+  const start = cleaned.indexOf("{")
+  const end = cleaned.lastIndexOf("}")
+  if (start === -1 || end === -1) return null
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1))
+  } catch {
+    return null
+  }
+}
+
+async function findWithAi(
+  message: string,
+  available: RegistryItem[],
+): Promise<GiftFinderResult | null> {
+  const list = available
+    .map((i) => `- ${i.title} ($${i.price}, ${i.category}, ${i.priority})`)
+    .join("\n")
+  try {
+    const { text } = await generateText({
+      model: AI_MODEL,
+      maxRetries: 2,
+      system:
+        "You help a wedding guest choose a gift from a registry. Reply with ONLY " +
+        'valid JSON: {"reply":string,"pickTitles":string[]}. pickTitles MUST be ' +
+        "3–5 titles chosen verbatim from the AVAILABLE GIFTS list, best matching " +
+        "the guest's budget and intent. reply is one warm, helpful sentence.",
+      prompt: `Guest says: ${message}\n\nAVAILABLE GIFTS:\n${list}`,
+    })
+    const parsed = parseJson(text) as {
+      reply?: string
+      pickTitles?: unknown
+    } | null
+    if (!parsed || !Array.isArray(parsed.pickTitles)) return null
+    const picks: RegistryItem[] = []
+    const seen = new Set<string>()
+    for (const t of parsed.pickTitles.slice(0, 5)) {
+      if (typeof t !== "string") continue
+      const tl = t.trim().toLowerCase()
+      const item =
+        available.find((i) => i.title.trim().toLowerCase() === tl) ??
+        available.find(
+          (i) =>
+            i.title.toLowerCase().includes(tl) || tl.includes(i.title.toLowerCase()),
+        )
+      if (item && !seen.has(item.id)) {
+        seen.add(item.id)
+        picks.push(item)
+      }
+    }
+    if (picks.length === 0) return null
+    return {
+      reply:
+        (typeof parsed.reply === "string" && parsed.reply.trim()) ||
+        `Here are ${picks.length} available gifts they'd love:`,
+      items: picks,
+    }
+  } catch (err) {
+    console.error("[v0] gift finder AI failed:", err)
+    return null
+  }
+}
+
+/** Public entry point: LLM finder with a rule-engine fallback. */
+export async function findGiftsSmart(
+  message: string,
+  registryItems: RegistryItem[],
+): Promise<GiftFinderResult> {
+  const available = registryItems.filter((i) => i.status === "available")
+  if (available.length > 0 && isAiEnabled()) {
+    const ai = await findWithAi(message, available)
+    if (ai) return ai
+  }
+  return findGifts(message, registryItems)
 }

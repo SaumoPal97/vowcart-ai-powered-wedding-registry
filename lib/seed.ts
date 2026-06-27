@@ -4,9 +4,12 @@ import { hashPassword } from "@/lib/auth"
 import {
   catalog,
   demoCouple,
+  demoMerchant,
+  DEMO_MERCHANT_USER,
   DEMO_USER,
   priorityToDbMap,
   seedRegistryItems,
+  seedSponsoredCampaigns,
   statusToDbMap,
 } from "@/lib/catalog"
 
@@ -136,6 +139,76 @@ export async function runSeed(): Promise<{ products: number; items: number }> {
             Boolean(s.thankYouSent),
             s.purchaseDate ? `${s.purchaseDate}T12:00:00Z` : null,
           ],
+        )
+      }
+    }
+
+    // Merchant account + first user (separate identity from the couple).
+    await client.query(
+      `INSERT INTO merchants (id, name, slug, website, shopify_merchant_id, plan, brands)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         website = EXCLUDED.website,
+         shopify_merchant_id = EXCLUDED.shopify_merchant_id,
+         plan = EXCLUDED.plan,
+         brands = EXCLUDED.brands`,
+      [
+        demoMerchant.id,
+        demoMerchant.name,
+        demoMerchant.slug,
+        demoMerchant.website,
+        demoMerchant.shopifyMerchantId,
+        "GROWTH",
+        demoMerchant.brands,
+      ],
+    )
+    await client.query(
+      `INSERT INTO merchant_users (id, merchant_id, email, name, password_hash)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name`,
+      [
+        DEMO_MERCHANT_USER.id,
+        DEMO_MERCHANT_USER.merchantId,
+        DEMO_MERCHANT_USER.email,
+        DEMO_MERCHANT_USER.name,
+        passwordHash,
+      ],
+    )
+
+    // Sponsored campaigns (+ flag the promoted products in the catalog).
+    for (const c of seedSponsoredCampaigns) {
+      await client.query(
+        `INSERT INTO sponsored_campaigns
+           (id, merchant_id, product_id, product_title, category, status, budget, bid, start_date, end_date, impressions, clicks, purchases)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+         ON CONFLICT (id) DO UPDATE SET
+           status = EXCLUDED.status,
+           budget = EXCLUDED.budget,
+           bid = EXCLUDED.bid,
+           impressions = EXCLUDED.impressions,
+           clicks = EXCLUDED.clicks,
+           purchases = EXCLUDED.purchases`,
+        [
+          c.id,
+          c.merchantId,
+          c.productId,
+          c.productTitle,
+          c.category,
+          c.status.toUpperCase(),
+          c.budget,
+          c.bid,
+          c.startDate || null,
+          c.endDate || null,
+          c.impressions,
+          c.clicks,
+          c.purchases,
+        ],
+      )
+      if (c.status === "active" && c.productId) {
+        await client.query(
+          `UPDATE products SET is_sponsored = true, sponsored_campaign_id = $2 WHERE id = $1`,
+          [c.productId, c.id],
         )
       }
     }

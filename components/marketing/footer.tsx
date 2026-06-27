@@ -5,7 +5,7 @@ const footerLinks = [
   { label: "About", href: "/#" },
   { label: "Privacy", href: "/#" },
   { label: "Terms", href: "/#" },
-  { label: "Contact", href: "/#" },
+  { label: "For Merchants", href: "/merchant" },
 ]
 
 export function Footer() {

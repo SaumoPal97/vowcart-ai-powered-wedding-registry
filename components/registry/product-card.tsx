@@ -1,6 +1,8 @@
 import type { ReactNode } from "react"
 import Image from "next/image"
+import { Megaphone } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { StarRating } from "@/components/registry/star-rating"
 import type { Product } from "@/lib/types"
 import { formatPrice } from "@/lib/data"
@@ -42,11 +44,25 @@ export function ProductCard({
         />
         {topLeft && <div className="absolute left-3 top-3">{topLeft}</div>}
         {topRight && <div className="absolute right-3 top-3">{topRight}</div>}
+        {product.isSponsored && !topRight && (
+          <div className="absolute right-3 top-3">
+            <Badge variant="secondary" className="gap-1 text-[10px] shadow-sm">
+              <Megaphone className="size-2.5" />
+              Sponsored
+            </Badge>
+          </div>
+        )}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {product.merchant}
+            {product.isSponsored && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-semibold normal-case tracking-normal text-accent">
+                <Megaphone className="size-2.5" />
+                Ad
+              </span>
+            )}
           </p>
           <p className="font-serif text-base font-semibold text-foreground">
             {formatPrice(product.price)}

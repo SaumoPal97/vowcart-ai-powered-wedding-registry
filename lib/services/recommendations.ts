@@ -1,6 +1,6 @@
 import "server-only"
 import { generateText } from "ai"
-import { catalog } from "@/lib/catalog"
+import { annotateSponsored, catalog } from "@/lib/catalog"
 import type { Product, ProductCategory, RecommendationGroup } from "@/lib/types"
 import { isUcpEnabled, searchCatalog } from "./ucp"
 import {
@@ -66,10 +66,12 @@ function scoreProduct(p: Product, q: Questionnaire): number {
 
 function curate(q: Questionnaire, perGroup = 4): RecommendationGroup[] {
   return GROUPS.map((g) => {
-    const products = catalog
-      .filter((p) => g.categories.includes(p.category))
-      .sort((a, b) => scoreProduct(b, q) - scoreProduct(a, q))
-      .slice(0, perGroup)
+    const products = annotateSponsored(
+      catalog
+        .filter((p) => g.categories.includes(p.category))
+        .sort((a, b) => scoreProduct(b, q) - scoreProduct(a, q))
+        .slice(0, perGroup),
+    )
     return { id: g.id, title: g.title, subtitle: g.subtitle, products }
   }).filter((g) => g.products.length > 0)
 }

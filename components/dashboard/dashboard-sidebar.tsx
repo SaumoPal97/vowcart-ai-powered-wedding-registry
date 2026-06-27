@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   Gift,
   Search,
-  BarChart3,
+  Sparkles,
   HeartHandshake,
   Settings,
   ExternalLink,
@@ -32,7 +32,7 @@ const NAV = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { title: "My Registry", href: "/dashboard/registry", icon: Gift },
   { title: "Find Gifts", href: "/dashboard/search", icon: Search },
-  { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+  { title: "AI Copilot", href: "/dashboard/copilot", icon: Sparkles },
   { title: "Thank-Yous", href: "/dashboard/thank-yous", icon: HeartHandshake },
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
 ]

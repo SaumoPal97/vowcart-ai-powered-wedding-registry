@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import { isDbConfigured } from "@/lib/db"
 import { createSession, findUserByEmail, verifyPassword } from "@/lib/auth"
 
+// Allow headroom for an Aurora Serverless cold-start resume.
+export const maxDuration = 45
+
 export async function POST(req: Request) {
   try {
     const { email, password } = await req.json()

@@ -7,6 +7,9 @@ import {
 } from "@/lib/repos/merchant"
 import { demoMerchant } from "@/lib/catalog"
 
+// Allow headroom for an Aurora Serverless cold-start resume.
+export const maxDuration = 45
+
 export async function POST(req: Request) {
   try {
     const { merchantName, contactName, email, password, website, shopifyMerchantId } =

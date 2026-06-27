@@ -48,7 +48,11 @@ function createPool() {
     ssl: { rejectUnauthorized: false },
     max: 10,
     idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
+    // Aurora Serverless can take ~15-30s to resume from a paused state; give the
+    // first connection enough room so cold-start requests (signup/login) don't
+    // fail with a connection timeout.
+    connectionTimeoutMillis: 30_000,
+    keepAlive: true,
   })
   attachDatabasePool(pool)
   return pool

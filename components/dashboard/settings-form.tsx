@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/field"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
+import { VanityDomainCard } from "@/components/dashboard/vanity-domain-card"
 import {
   Dialog,
   DialogContent,
@@ -306,6 +307,10 @@ export function SettingsForm({ couple }: { couple: Couple }) {
             </Button>
           </CardFooter>
         </Card>
+
+        <div className="mt-6">
+          <VanityDomainCard />
+        </div>
       </TabsContent>
     </Tabs>
   )

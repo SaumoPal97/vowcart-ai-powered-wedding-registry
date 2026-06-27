@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getRegistryItemsBySlug } from "@/lib/repos/registry"
 import { findGiftsSmart } from "@/lib/services/gift-finder"
 
-export const maxDuration = 20
+export const maxDuration = 30
 
 export async function POST(request: Request) {
   try {

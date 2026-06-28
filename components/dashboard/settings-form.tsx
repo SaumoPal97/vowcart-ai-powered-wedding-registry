@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { VanityDomainCard } from "@/components/dashboard/vanity-domain-card"
+import { PhotoUpload } from "@/components/dashboard/photo-upload"
 import {
   Dialog,
   DialogContent,
@@ -170,30 +171,12 @@ export function SettingsForm({ couple }: { couple: Couple }) {
                 </FieldDescription>
               </Field>
               <Field>
-                <FieldLabel htmlFor="photo">Cover photo URL</FieldLabel>
-                <Input
-                  id="photo"
-                  placeholder="https://images.example.com/us.jpg"
-                  value={photo}
-                  onChange={(e) => setPhoto(e.target.value)}
-                />
+                <FieldLabel>Cover photo</FieldLabel>
+                <PhotoUpload value={photo} onChange={setPhoto} />
                 <FieldDescription>
-                  The hero image on your public page. Paste any image link.
+                  The hero image on your public page. Upload from your device or
+                  paste an image link.
                 </FieldDescription>
-                {photo.trim() && (
-                  <div className="relative mt-2 aspect-[3/2] w-full max-w-sm overflow-hidden rounded-xl border border-border bg-muted">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={photo}
-                      alt="Cover preview"
-                      className="size-full object-cover"
-                      onError={(e) => {
-                        ;(e.currentTarget as HTMLImageElement).style.display =
-                          "none"
-                      }}
-                    />
-                  </div>
-                )}
               </Field>
             </FieldGroup>
           </CardContent>

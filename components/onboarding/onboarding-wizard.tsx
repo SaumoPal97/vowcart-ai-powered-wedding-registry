@@ -16,6 +16,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ProductCard } from "@/components/registry/product-card"
 import { AiBuilding } from "@/components/onboarding/ai-building"
+import { PhotoUpload } from "@/components/dashboard/photo-upload"
 import { lifestyleQuestions, registrySizes, formatPrice } from "@/lib/data"
 import type { Product } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -250,36 +251,17 @@ export function OnboardingWizard() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="photo">
-                  Cover photo URL{" "}
+                <FieldLabel>
+                  Cover photo{" "}
                   <span className="font-normal text-muted-foreground">
                     (optional)
                   </span>
                 </FieldLabel>
-                <Input
-                  id="photo"
-                  placeholder="https://images.example.com/us.jpg"
-                  value={photo}
-                  onChange={(e) => setPhoto(e.target.value)}
-                />
+                <PhotoUpload value={photo} onChange={setPhoto} />
                 <FieldDescription>
-                  Paste a link to your favorite photo. We&apos;ll use a tasteful
-                  placeholder if you skip this.
+                  Upload your favorite photo or paste a link. We&apos;ll use a
+                  tasteful placeholder if you skip this.
                 </FieldDescription>
-                {photo.trim() && (
-                  <div className="relative mt-2 aspect-[3/2] w-full overflow-hidden rounded-xl border border-border bg-muted">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={photo}
-                      alt="Cover preview"
-                      className="size-full object-cover"
-                      onError={(e) => {
-                        ;(e.currentTarget as HTMLImageElement).style.display =
-                          "none"
-                      }}
-                    />
-                  </div>
-                )}
               </Field>
             </FieldGroup>
             <Button

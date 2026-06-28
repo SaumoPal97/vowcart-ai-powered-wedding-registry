@@ -55,6 +55,7 @@ export function OnboardingWizard() {
   const [size, setSize] = useState(50)
   const [removed, setRemoved] = useState<Set<string>>(new Set())
   const [generated, setGenerated] = useState<Product[]>([])
+  const [built, setBuilt] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const totalQuestions = lifestyleQuestions.length
@@ -66,6 +67,7 @@ export function OnboardingWizard() {
   // Build a registry sized to the couple's chosen size (AI + UCP + catalog
   // top-up), so the number of gifts matches what they picked.
   async function buildRegistry() {
+    setBuilt(false)
     setPhase("building")
     try {
       const res = await fetch("/api/onboarding/registry", {
@@ -78,6 +80,9 @@ export function OnboardingWizard() {
     } catch {
       toast.error("Couldn't build your registry. Please try again.")
       setGenerated([])
+    } finally {
+      // Let the building animation finish and advance once data has loaded.
+      setBuilt(true)
     }
   }
 
@@ -362,7 +367,7 @@ export function OnboardingWizard() {
         )}
 
         {phase === "building" && (
-          <AiBuilding onComplete={() => setPhase("result")} />
+          <AiBuilding ready={built} onComplete={() => setPhase("result")} />
         )}
 
         {phase === "result" && (

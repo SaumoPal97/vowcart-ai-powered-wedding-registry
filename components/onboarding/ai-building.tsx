@@ -12,17 +12,32 @@ const STEPS = [
   "Finalizing your personalized registry",
 ]
 
-export function AiBuilding({ onComplete }: { onComplete: () => void }) {
+export function AiBuilding({
+  onComplete,
+  ready = true,
+}: {
+  onComplete: () => void
+  // When false, the animation holds on the last step until the data is ready,
+  // so we never advance to an empty result screen.
+  ready?: boolean
+}) {
   const [current, setCurrent] = useState(0)
+  const last = STEPS.length - 1
 
   useEffect(() => {
-    if (current >= STEPS.length) {
-      const done = setTimeout(onComplete, 700)
+    if (current < last) {
+      const timer = setTimeout(() => setCurrent((c) => c + 1), 900)
+      return () => clearTimeout(timer)
+    }
+    // On the final step: wait until the registry data has loaded, then finish.
+    if (ready) {
+      const done = setTimeout(() => {
+        setCurrent(STEPS.length)
+        onComplete()
+      }, 600)
       return () => clearTimeout(done)
     }
-    const timer = setTimeout(() => setCurrent((c) => c + 1), 900)
-    return () => clearTimeout(timer)
-  }, [current, onComplete])
+  }, [current, last, ready, onComplete])
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-8 py-10 text-center">

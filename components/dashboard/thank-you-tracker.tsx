@@ -165,7 +165,7 @@ export function ThankYouTracker({
             <TableHeader>
               <TableRow>
                 <TableHead>Gift</TableHead>
-                <TableHead>From</TableHead>
+                <TableHead className="hidden sm:table-cell">From</TableHead>
                 <TableHead className="hidden sm:table-cell">Date</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Action</TableHead>
@@ -175,9 +175,12 @@ export function ThankYouTracker({
               {notes.map((note) => (
                 <TableRow key={note.id}>
                   <TableCell className="font-medium text-foreground">
-                    {note.gift}
+                    <span className="block">{note.gift}</span>
+                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground sm:hidden">
+                      From {note.purchasedBy}
+                    </span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="hidden text-muted-foreground sm:table-cell">
                     {note.purchasedBy}
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">

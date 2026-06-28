@@ -145,14 +145,14 @@ export function SponsoredManager({
                 <TableHead className="hidden text-right md:table-cell">Budget</TableHead>
                 <TableHead className="hidden text-right lg:table-cell">Impr.</TableHead>
                 <TableHead className="hidden text-right lg:table-cell">Clicks</TableHead>
-                <TableHead className="text-right">Purch.</TableHead>
+                <TableHead className="hidden text-right sm:table-cell">Purch.</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {campaigns.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium text-foreground">
+                  <TableCell className="max-w-[42vw] truncate font-medium text-foreground sm:max-w-none">
                     {c.productTitle}
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">
@@ -172,7 +172,7 @@ export function SponsoredManager({
                   <TableCell className="hidden text-right text-muted-foreground lg:table-cell">
                     {c.clicks.toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
+                  <TableCell className="hidden text-right text-muted-foreground sm:table-cell">
                     {c.purchases.toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right">

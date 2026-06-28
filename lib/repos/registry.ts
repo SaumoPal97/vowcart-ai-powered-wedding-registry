@@ -228,7 +228,7 @@ export async function addRegistryItem(
 
 export async function updateRegistryItem(
   id: string,
-  patch: { priority?: ItemPriority; status?: ItemStatus },
+  patch: { priority?: ItemPriority; status?: ItemStatus; image?: string },
 ): Promise<RegistryItem | null> {
   if (!isDbConfigured()) {
     const seed = buildSeedItems().find((i) => i.id === id)
@@ -240,6 +240,7 @@ export async function updateRegistryItem(
     `UPDATE registry_items SET
         priority = COALESCE($2, priority),
         status = COALESCE($3, status),
+        image = COALESCE($4, image),
         updated_at = now()
       WHERE id = $1
       RETURNING *, NULL::text AS guest_name, NULL::text AS guest_email, NULL::timestamptz AS purchased_at`,
@@ -247,6 +248,7 @@ export async function updateRegistryItem(
       id,
       patch.priority ? priorityToDb[patch.priority] : null,
       patch.status ? statusToDb[patch.status] : null,
+      patch.image || null,
     ],
   )
   return rows[0] ? rowToItem(rows[0]) : null

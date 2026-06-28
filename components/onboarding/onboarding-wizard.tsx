@@ -17,7 +17,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ProductCard } from "@/components/registry/product-card"
 import { AiBuilding } from "@/components/onboarding/ai-building"
 import { PhotoUpload } from "@/components/dashboard/photo-upload"
-import { lifestyleQuestions, registrySizes, formatPrice } from "@/lib/data"
+import {
+  lifestyleQuestions,
+  registrySizes,
+  formatPrice,
+  coverPhotoPresets,
+} from "@/lib/data"
 import type { Product } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -257,7 +262,11 @@ export function OnboardingWizard() {
                     (optional)
                   </span>
                 </FieldLabel>
-                <PhotoUpload value={photo} onChange={setPhoto} />
+                <PhotoUpload
+                  value={photo}
+                  onChange={setPhoto}
+                  presets={coverPhotoPresets}
+                />
                 <FieldDescription>
                   Upload your favorite photo or paste a link. We&apos;ll use a
                   tasteful placeholder if you skip this.

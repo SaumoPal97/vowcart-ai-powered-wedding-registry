@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
 import {
   createCouple,
-  getCoupleByUserId,
   getCoupleForRequest,
   updateCouple,
 } from "@/lib/repos/couples"
@@ -23,15 +22,8 @@ export async function GET() {
   }
 }
 
-// Create-or-update the signed-in user's couple from the request body.
+// Create-or-update the couple for this request from the body.
 async function upsertCouple(req: Request) {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json(
-      { error: "Please sign in to create your registry." },
-      { status: 401 },
-    )
-  }
   const body = (await req.json()) as {
     partnerOne?: string
     partnerTwo?: string
@@ -44,12 +36,23 @@ async function upsertCouple(req: Request) {
     preferences?: Record<string, string | number>
   }
 
-  const existing = await getCoupleByUserId(session.userId)
+  // Resolve the couple this request manages, mirroring how the dashboard
+  // reads it (signed-in user's couple, or the demo couple). Editing the demo
+  // works without an account so the live demo is fully interactive.
+  const existing = await getCoupleForRequest()
   if (existing) {
     const updated = await updateCouple(existing.id, body)
     return NextResponse.json({ couple: updated })
   }
 
+  // No couple yet → a signed-in user is creating their first registry.
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json(
+      { error: "Please sign in to create your registry." },
+      { status: 401 },
+    )
+  }
   if (!body.partnerOne?.trim() || !body.partnerTwo?.trim()) {
     return NextResponse.json(
       { error: "Both partner names are required." },
@@ -93,11 +96,7 @@ export async function PATCH(req: Request) {
 // DELETE /api/registry — hide the registry (set non-public)
 export async function DELETE() {
   try {
-    const session = await getSession()
-    if (!session) {
-      return NextResponse.json({ error: "Please sign in." }, { status: 401 })
-    }
-    const couple = await getCoupleByUserId(session.userId)
+    const couple = await getCoupleForRequest()
     if (!couple) {
       return NextResponse.json({ error: "No couple found." }, { status: 404 })
     }

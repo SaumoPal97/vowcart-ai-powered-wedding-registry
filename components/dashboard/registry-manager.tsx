@@ -1,9 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Search, Trash2, Star, Gift, RefreshCw } from "lucide-react"
+import { Search, Trash2, Star, Gift, RefreshCw, ImageIcon } from "lucide-react"
 import { ProductCard } from "@/components/registry/product-card"
 import { ReplaceProductDialog } from "@/components/dashboard/replace-product-dialog"
+import { ItemPhotoDialog } from "@/components/dashboard/item-photo-dialog"
 import { StatusBadge, PriorityBadge } from "@/components/registry/badges"
 import { Button } from "@/components/ui/button"
 import {
@@ -39,6 +40,8 @@ export function RegistryManager({
   const [query, setQuery] = useState("")
   const [replaceItem, setReplaceItem] = useState<RegistryItem | null>(null)
   const [replaceOpen, setReplaceOpen] = useState(false)
+  const [photoItem, setPhotoItem] = useState<RegistryItem | null>(null)
+  const [photoOpen, setPhotoOpen] = useState(false)
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
@@ -61,6 +64,15 @@ export function RegistryManager({
 
   function handleReplaced(oldId: string, newItem: RegistryItem) {
     setItems((prev) => prev.map((i) => (i.id === oldId ? newItem : i)))
+  }
+
+  function openPhoto(item: RegistryItem) {
+    setPhotoItem(item)
+    setPhotoOpen(true)
+  }
+
+  function handlePhotoUpdated(id: string, image: string) {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, image } : i)))
   }
 
   async function removeItem(id: string) {
@@ -211,6 +223,15 @@ export function RegistryManager({
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={() => openPhoto(item)}
+                      disabled={item.status === "purchased"}
+                      aria-label="Change gift photo"
+                    >
+                      <ImageIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => openReplace(item)}
                       disabled={item.status !== "available"}
                       aria-label="Replace gift"
@@ -245,6 +266,13 @@ export function RegistryManager({
         open={replaceOpen}
         onOpenChange={setReplaceOpen}
         onReplaced={handleReplaced}
+      />
+
+      <ItemPhotoDialog
+        item={photoItem}
+        open={photoOpen}
+        onOpenChange={setPhotoOpen}
+        onUpdated={handlePhotoUpdated}
       />
     </div>
   )

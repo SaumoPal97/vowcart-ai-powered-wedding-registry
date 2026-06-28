@@ -36,6 +36,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog"
 import type { Couple } from "@/lib/types"
+import { coverPhotoPresets } from "@/lib/data"
 import { toast } from "sonner"
 
 export function SettingsForm({ couple }: { couple: Couple }) {
@@ -172,7 +173,11 @@ export function SettingsForm({ couple }: { couple: Couple }) {
               </Field>
               <Field>
                 <FieldLabel>Cover photo</FieldLabel>
-                <PhotoUpload value={photo} onChange={setPhoto} />
+                <PhotoUpload
+                  value={photo}
+                  onChange={setPhoto}
+                  presets={coverPhotoPresets}
+                />
                 <FieldDescription>
                   The hero image on your public page. Upload from your device or
                   paste an image link.

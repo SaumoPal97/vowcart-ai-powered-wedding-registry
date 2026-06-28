@@ -5,20 +5,24 @@ import { upload } from "@vercel/blob/client"
 import { Upload, Loader2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 const MAX_BYTES = 10 * 1024 * 1024
 
 /**
- * Cover-photo picker: uploads directly to Vercel Blob and falls back to a
- * pasted image URL. Both paths write the final URL through `onChange`.
+ * Cover-photo picker: uploads directly to Vercel Blob, offers one-click
+ * preset images, and falls back to a pasted image URL. Every path writes the
+ * final URL through `onChange`.
  */
 export function PhotoUpload({
   value,
   onChange,
+  presets,
 }: {
   value: string
   onChange: (url: string) => void
+  presets?: string[]
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -87,6 +91,33 @@ export function PhotoUpload({
           </Button>
         )}
       </div>
+
+      {presets && presets.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-muted-foreground">
+            …or pick a suggested photo
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {presets.map((url) => (
+              <button
+                key={url}
+                type="button"
+                aria-label="Use this photo"
+                onClick={() => onChange(url)}
+                className={cn(
+                  "relative size-14 overflow-hidden rounded-lg border-2 transition",
+                  value === url
+                    ? "border-accent ring-2 ring-accent/40"
+                    : "border-border hover:border-muted-foreground",
+                )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="size-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Input
         placeholder="…or paste an image URL"

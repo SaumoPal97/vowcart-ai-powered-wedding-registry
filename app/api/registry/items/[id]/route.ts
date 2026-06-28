@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server"
-import { getSessionUser } from "@/lib/auth"
+import { getCoupleForRequest } from "@/lib/repos/couples"
 import { deleteRegistryItem, updateRegistryItem } from "@/lib/repos/registry"
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const user = await getSessionUser()
-  if (!user) {
+  // Mirror the dashboard's read auth: the request's couple (signed-in or demo).
+  const couple = await getCoupleForRequest()
+  if (!couple) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
   try {
@@ -16,6 +17,7 @@ export async function PATCH(
     const item = await updateRegistryItem(id, {
       priority: body.priority,
       status: body.status,
+      image: body.image,
     })
     if (!item) {
       return NextResponse.json({ error: "Item not found" }, { status: 404 })
@@ -34,8 +36,8 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const user = await getSessionUser()
-  if (!user) {
+  const couple = await getCoupleForRequest()
+  if (!couple) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
   try {

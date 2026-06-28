@@ -44,6 +44,8 @@ export function OnboardingWizard() {
   const [partnerOne, setPartnerOne] = useState("")
   const [partnerTwo, setPartnerTwo] = useState("")
   const [weddingDate, setWeddingDate] = useState("")
+  const [location, setLocation] = useState("")
+  const [photo, setPhoto] = useState("")
   const [slug, setSlug] = useState("")
   const [slugEdited, setSlugEdited] = useState(false)
 
@@ -98,6 +100,8 @@ export function OnboardingWizard() {
           partnerOne,
           partnerTwo,
           weddingDate,
+          location,
+          photo,
           slug: effectiveSlug,
           preferences: { ...answers, size },
         }),
@@ -230,6 +234,52 @@ export function OnboardingWizard() {
                   Your shareable registry URL. Auto-filled from your names —
                   edit it any time.
                 </FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="location">
+                  Wedding location{" "}
+                  <span className="font-normal text-muted-foreground">
+                    (optional)
+                  </span>
+                </FieldLabel>
+                <Input
+                  id="location"
+                  placeholder="Hudson Valley, New York"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="photo">
+                  Cover photo URL{" "}
+                  <span className="font-normal text-muted-foreground">
+                    (optional)
+                  </span>
+                </FieldLabel>
+                <Input
+                  id="photo"
+                  placeholder="https://images.example.com/us.jpg"
+                  value={photo}
+                  onChange={(e) => setPhoto(e.target.value)}
+                />
+                <FieldDescription>
+                  Paste a link to your favorite photo. We&apos;ll use a tasteful
+                  placeholder if you skip this.
+                </FieldDescription>
+                {photo.trim() && (
+                  <div className="relative mt-2 aspect-[3/2] w-full overflow-hidden rounded-xl border border-border bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo}
+                      alt="Cover preview"
+                      className="size-full object-cover"
+                      onError={(e) => {
+                        ;(e.currentTarget as HTMLImageElement).style.display =
+                          "none"
+                      }}
+                    />
+                  </div>
+                )}
               </Field>
             </FieldGroup>
             <Button

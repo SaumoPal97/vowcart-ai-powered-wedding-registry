@@ -89,10 +89,12 @@ export function PublicRegistry({
                 <Calendar className="size-4" />
                 {formatWeddingDate(couple.weddingDate)}
               </span>
-              <span className="flex items-center gap-1.5">
-                <MapPin className="size-4" />
-                {couple.location}
-              </span>
+              {couple.location && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="size-4" />
+                  {couple.location}
+                </span>
+              )}
             </div>
             <p className="max-w-md text-pretty leading-relaxed text-muted-foreground">
               {couple.story}

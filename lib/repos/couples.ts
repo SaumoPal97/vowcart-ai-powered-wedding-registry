@@ -62,7 +62,7 @@ function rowToCouple(r: CoupleRow): Couple & { id: string; userId: string } {
       : "",
     location: r.location ?? "",
     slug: r.slug,
-    photo: r.photo ?? "/couple.png",
+    photo: r.photo || "/couple.png",
     story: r.story ?? "",
     isPublic: r.is_public,
     preferences: r.preferences ?? undefined,
@@ -127,6 +127,7 @@ export async function createCouple(input: {
   location?: string
   story?: string
   slug?: string
+  photo?: string
   preferences?: Record<string, string | number>
 }): Promise<Couple & { id: string; userId: string }> {
   if (!isDbConfigured()) {
@@ -135,6 +136,8 @@ export async function createCouple(input: {
       partnerOne: input.partnerOne,
       partnerTwo: input.partnerTwo,
       weddingDate: input.weddingDate ?? demoWithIds.weddingDate,
+      location: input.location ?? "",
+      photo: input.photo || demoWithIds.photo,
       slug: input.slug
         ? slugifyRaw(input.slug)
         : slugifyNames(input.partnerOne, input.partnerTwo),
@@ -148,17 +151,18 @@ export async function createCouple(input: {
   return withTransaction(async (client) => {
     const { rows } = await client.query(
       `INSERT INTO couples
-         (user_id, partner_one, partner_two, wedding_date, location, slug, story, is_public, preferences)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8)
+         (user_id, partner_one, partner_two, wedding_date, location, slug, story, photo, is_public, preferences)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9)
        RETURNING *`,
       [
         input.userId,
         input.partnerOne,
         input.partnerTwo,
         input.weddingDate || null,
-        input.location ?? null,
+        input.location || null,
         slug,
         input.story ?? null,
+        input.photo || null,
         input.preferences ? JSON.stringify(input.preferences) : null,
       ],
     )
@@ -192,6 +196,7 @@ export async function updateCouple(
        is_public = COALESCE($7, is_public),
        slug = COALESCE($8, slug),
        preferences = COALESCE($9, preferences),
+       photo = COALESCE($10, photo),
        updated_at = now()
      WHERE id = $1
      RETURNING *`,
@@ -205,6 +210,7 @@ export async function updateCouple(
       typeof patch.isPublic === "boolean" ? patch.isPublic : null,
       slug,
       patch.preferences ? JSON.stringify(patch.preferences) : null,
+      patch.photo || null,
     ],
   )
   return rowToCouple(rows[0])

@@ -45,6 +45,7 @@ export function SettingsForm({ couple }: { couple: Couple }) {
   const [weddingDate, setWeddingDate] = useState(couple.weddingDate)
   const [location, setLocation] = useState(couple.location)
   const [story, setStory] = useState(couple.story)
+  const [photo, setPhoto] = useState(couple.photo)
   const [slug, setSlug] = useState(couple.slug)
 
   const [isPublic, setIsPublic] = useState(couple.isPublic)
@@ -168,13 +169,46 @@ export function SettingsForm({ couple }: { couple: Couple }) {
                   Share a few words for your guests on the public page.
                 </FieldDescription>
               </Field>
+              <Field>
+                <FieldLabel htmlFor="photo">Cover photo URL</FieldLabel>
+                <Input
+                  id="photo"
+                  placeholder="https://images.example.com/us.jpg"
+                  value={photo}
+                  onChange={(e) => setPhoto(e.target.value)}
+                />
+                <FieldDescription>
+                  The hero image on your public page. Paste any image link.
+                </FieldDescription>
+                {photo.trim() && (
+                  <div className="relative mt-2 aspect-[3/2] w-full max-w-sm overflow-hidden rounded-xl border border-border bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo}
+                      alt="Cover preview"
+                      className="size-full object-cover"
+                      onError={(e) => {
+                        ;(e.currentTarget as HTMLImageElement).style.display =
+                          "none"
+                      }}
+                    />
+                  </div>
+                )}
+              </Field>
             </FieldGroup>
           </CardContent>
           <CardFooter>
             <Button
               disabled={saving}
               onClick={() =>
-                save({ partnerOne, partnerTwo, weddingDate, location, story })
+                save({
+                  partnerOne,
+                  partnerTwo,
+                  weddingDate,
+                  location,
+                  story,
+                  photo,
+                })
               }
             >
               <Save data-icon="inline-start" />

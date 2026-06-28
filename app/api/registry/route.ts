@@ -39,6 +39,7 @@ async function upsertCouple(req: Request) {
     location?: string
     story?: string
     slug?: string
+    photo?: string
     isPublic?: boolean
     preferences?: Record<string, string | number>
   }
@@ -63,6 +64,7 @@ async function upsertCouple(req: Request) {
     location: body.location,
     story: body.story,
     slug: body.slug,
+    photo: body.photo,
     preferences: body.preferences,
   })
   return NextResponse.json({ couple: created })

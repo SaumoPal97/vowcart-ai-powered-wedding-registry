@@ -14,7 +14,6 @@ import { ProductCard } from "@/components/registry/product-card"
 import { ReplaceProductDialog } from "@/components/dashboard/replace-product-dialog"
 import { ItemPhotoDialog } from "@/components/dashboard/item-photo-dialog"
 import { AddCashFundDialog } from "@/components/dashboard/add-cash-fund-dialog"
-import { DownloadRegistryPdf } from "@/components/dashboard/download-registry-pdf"
 import { StatusBadge, PriorityBadge } from "@/components/registry/badges"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,17 +32,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CATEGORIES, formatPrice } from "@/lib/data"
-import type { Couple, ItemPriority, ItemStatus, RegistryItem } from "@/lib/types"
+import type { ItemPriority, ItemStatus, RegistryItem } from "@/lib/types"
 import { toast } from "sonner"
 
 type Filter = "all" | ItemStatus
 
 export function RegistryManager({
   initialItems,
-  couple,
 }: {
   initialItems: RegistryItem[]
-  couple: Couple
 }) {
   const [items, setItems] = useState<RegistryItem[]>(initialItems)
   const [filter, setFilter] = useState<Filter>("all")
@@ -221,7 +218,6 @@ export function RegistryManager({
             </SelectContent>
           </Select>
           <AddCashFundDialog onAdded={handleCashFundAdded} />
-          <DownloadRegistryPdf couple={couple} items={items} />
         </div>
       </div>
 

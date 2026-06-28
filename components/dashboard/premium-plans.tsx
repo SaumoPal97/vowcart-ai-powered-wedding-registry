@@ -26,7 +26,6 @@ const PREMIUM = [
   "Unlimited AI Copilot edits",
   "AI-generated thank-you notes (every tone)",
   "Group gifting & cash funds",
-  "Downloadable registry PDF",
 ]
 
 export function PremiumPlans() {

@@ -16,7 +16,7 @@ export default async function SearchPage({
   searchParams: Promise<{ tab?: string }>
 }) {
   const { tab } = await searchParams
-  const defaultTab = tab === "recommendations" ? "recommendations" : "search"
+  const defaultTab = tab === "copilot" ? "copilot" : "search"
 
   const couple = await getCoupleForRequest()
   if (!couple) redirect("/onboarding")
@@ -48,6 +48,7 @@ export default async function SearchPage({
         <FindGifts
           groups={filtered}
           coupleNames={`${couple.partnerOne} & ${couple.partnerTwo}`}
+          items={items}
           defaultTab={defaultTab}
           recsSource={source}
         />

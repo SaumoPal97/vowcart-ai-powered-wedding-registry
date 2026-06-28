@@ -4,17 +4,20 @@ import { Search, Sparkles } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProductSearch } from "@/components/dashboard/product-search"
 import { Recommendations } from "@/components/dashboard/recommendations"
-import type { RecommendationGroup } from "@/lib/types"
+import { RegistryCopilot } from "@/components/dashboard/registry-copilot"
+import type { RecommendationGroup, RegistryItem } from "@/lib/types"
 
 export function FindGifts({
   groups,
   coupleNames,
+  items,
   defaultTab = "search",
   recsSource,
 }: {
   groups: RecommendationGroup[]
   coupleNames: string
-  defaultTab?: "search" | "recommendations"
+  items: RegistryItem[]
+  defaultTab?: "search" | "copilot"
   recsSource?: "cache" | "ai" | "ucp" | "fallback"
 }) {
   return (
@@ -24,25 +27,29 @@ export function FindGifts({
           <Search data-icon="inline-start" />
           Search
         </TabsTrigger>
-        <TabsTrigger value="recommendations">
+        <TabsTrigger value="copilot">
           <Sparkles data-icon="inline-start" />
-          For You
+          AI Copilot
         </TabsTrigger>
       </TabsList>
 
       <TabsContent value="search">
-        <ProductSearch />
+        <div className="flex flex-col gap-10">
+          <ProductSearch />
+          {/* For You suggestions live here, below the search. Groups are
+              pre-filtered server-side to exclude registry items, so nothing
+              shown is already added — pass an empty baseline. */}
+          <Recommendations
+            groups={groups}
+            coupleNames={coupleNames}
+            alreadyAdded={[]}
+            source={recsSource}
+          />
+        </div>
       </TabsContent>
 
-      <TabsContent value="recommendations">
-        {/* Groups are pre-filtered server-side to exclude registry items, so
-            nothing here is already added — pass an empty baseline. */}
-        <Recommendations
-          groups={groups}
-          coupleNames={coupleNames}
-          alreadyAdded={[]}
-          source={recsSource}
-        />
+      <TabsContent value="copilot">
+        <RegistryCopilot initialItems={items} />
       </TabsContent>
     </Tabs>
   )

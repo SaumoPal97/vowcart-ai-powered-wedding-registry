@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 
-// Recommendations now live as the "For You" tab inside Find Gifts.
+// "For You" recommendations now live inside the Find Gifts → Search tab.
 export default function RecommendationsPage() {
-  redirect("/dashboard/search?tab=recommendations")
+  redirect("/dashboard/search")
 }

@@ -3,6 +3,7 @@ import Image from "next/image"
 import { Megaphone } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { StarRating } from "@/components/registry/star-rating"
 import type { Product } from "@/lib/types"
 import { formatPrice } from "@/lib/data"
@@ -15,6 +16,8 @@ export function ProductCard({
   footer,
   dimmed,
   className,
+  progress,
+  hideRating,
 }: {
   product: Product
   topLeft?: ReactNode
@@ -22,7 +25,13 @@ export function ProductCard({
   footer?: ReactNode
   dimmed?: boolean
   className?: string
+  progress?: { raised: number; goal: number; contributors?: number }
+  hideRating?: boolean
 }) {
+  const pct =
+    progress && progress.goal > 0
+      ? Math.min(100, Math.round((progress.raised / progress.goal) * 100))
+      : 0
   return (
     <Card
       className={cn(
@@ -71,7 +80,23 @@ export function ProductCard({
         <h3 className="text-pretty text-sm font-semibold leading-snug text-foreground">
           {product.title}
         </h3>
-        <StarRating rating={product.rating} reviews={product.reviews} />
+        {!hideRating && (
+          <StarRating rating={product.rating} reviews={product.reviews} />
+        )}
+        {progress && (
+          <div className="flex flex-col gap-1.5">
+            <Progress value={pct} />
+            <p className="text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">
+                {formatPrice(progress.raised)}
+              </span>{" "}
+              of {formatPrice(progress.goal)} raised
+              {progress.contributors ? (
+                <> · {progress.contributors} gave</>
+              ) : null}
+            </p>
+          </div>
+        )}
         {footer && <div className="mt-auto pt-2">{footer}</div>}
       </div>
     </Card>

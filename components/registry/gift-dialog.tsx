@@ -3,7 +3,16 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import confetti from "canvas-confetti"
-import { Check, Clock, ShoppingBag, ExternalLink, Loader2 } from "lucide-react"
+import {
+  Check,
+  Clock,
+  ShoppingBag,
+  ExternalLink,
+  Loader2,
+  HeartHandshake,
+} from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
   DialogContent,
@@ -26,7 +35,7 @@ import type { RegistryItem, ItemStatus } from "@/lib/types"
 import { toast } from "sonner"
 
 type Step = "details" | "form" | "confirm" | "success"
-type Intent = "buy" | "reserve"
+type Intent = "buy" | "reserve" | "contribute"
 
 export function GiftDialog({
   item,
@@ -34,17 +43,26 @@ export function GiftDialog({
   onOpenChange,
   slug,
   onComplete,
+  onContributed,
 }: {
   item: RegistryItem | null
   open: boolean
   onOpenChange: (open: boolean) => void
   slug: string
   onComplete: (id: string, status: ItemStatus, name: string) => void
+  onContributed?: (
+    id: string,
+    contributed: number,
+    contributorCount: number,
+    funded: boolean,
+  ) => void
 }) {
   const [step, setStep] = useState<Step>("details")
   const [intent, setIntent] = useState<Intent>("buy")
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [amount, setAmount] = useState("")
+  const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
   // 15-minute reservation window (in seconds remaining).
   const [secondsLeft, setSecondsLeft] = useState(15 * 60)
@@ -67,6 +85,8 @@ export function GiftDialog({
     setStep("details")
     setName("")
     setEmail("")
+    setAmount("")
+    setMessage("")
     setLoading(false)
   }
 
@@ -104,7 +124,9 @@ export function GiftDialog({
 
   // Primary action from the form step.
   async function submit() {
-    if (!name.trim() || !email.trim() || !item) return
+    if (!item) return
+    if (intent === "contribute") return submitContribute()
+    if (!name.trim() || !email.trim()) return
     if (intent === "reserve") return submitReserve()
     // UCP buy → hand off to the merchant's real Shopify checkout, then confirm.
     if (item.checkoutUrl) {
@@ -134,6 +156,44 @@ export function GiftDialog({
       setLoading(false)
       setStep("success")
       onComplete(item.id, "reserved", name)
+    } catch {
+      toast.error("Something went wrong. Please try again.")
+      setLoading(false)
+    }
+  }
+
+  // Records a guest's contribution toward a group gift / cash fund.
+  async function submitContribute() {
+    if (!item) return
+    const value = Number(amount)
+    if (!name.trim() || !Number.isFinite(value) || value <= 0) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/registry/items/${item.id}/contribute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guestName: name,
+          guestEmail: email || undefined,
+          amount: value,
+          message: message || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? "Couldn't record your contribution.")
+        setLoading(false)
+        return
+      }
+      setLoading(false)
+      setStep("success")
+      fireConfetti()
+      onContributed?.(
+        item.id,
+        data.contributed,
+        data.contributorCount,
+        data.funded,
+      )
     } catch {
       toast.error("Something went wrong. Please try again.")
       setLoading(false)
@@ -173,6 +233,13 @@ export function GiftDialog({
 
   if (!item) return null
 
+  const contributable = !!item.isGroupGift || item.itemType === "cash_fund"
+  const raised = item.contributed ?? 0
+  const goal = item.price
+  const remaining = Math.max(0, goal - raised)
+  const fundedPct = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0
+  const isFunded = contributable && remaining <= 0
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -183,7 +250,9 @@ export function GiftDialog({
                 {item.title}
               </DialogTitle>
               <DialogDescription>
-                Sold by {item.merchant} · {item.category}
+                {item.itemType === "cash_fund"
+                  ? "Cash fund"
+                  : `Sold by ${item.merchant} · ${item.category}`}
               </DialogDescription>
             </DialogHeader>
             <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
@@ -198,34 +267,83 @@ export function GiftDialog({
                 <StatusBadge status={item.status} />
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-serif text-2xl font-semibold text-foreground">
-                {formatPrice(item.price)}
-              </span>
-              <StarRating rating={item.rating} reviews={item.reviews} />
-            </div>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {item.description}
-            </p>
-            <FieldGroup>
-              <Button size="lg" className="w-full" onClick={() => start("buy")}>
-                <ShoppingBag data-icon="inline-start" />
-                Buy this gift · {formatPrice(item.price)}
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full"
-                onClick={() => start("reserve")}
-              >
-                <Clock data-icon="inline-start" />
-                Reserve for later
-              </Button>
-            </FieldGroup>
-            <p className="text-center text-xs text-muted-foreground">
-              Secure checkout powered by Shopify across {item.merchant} and 40+
-              merchants.
-            </p>
+            {contributable ? (
+              <>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-baseline justify-between">
+                    <span className="font-serif text-2xl font-semibold text-foreground">
+                      {formatPrice(raised)}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      of {formatPrice(goal)} goal
+                    </span>
+                  </div>
+                  <Progress value={fundedPct} />
+                  <p className="text-xs text-muted-foreground">
+                    {item.contributorCount
+                      ? `${item.contributorCount} ${
+                          item.contributorCount === 1 ? "guest has" : "guests have"
+                        } contributed`
+                      : "Be the first to contribute"}
+                    {!isFunded && remaining > 0
+                      ? ` · ${formatPrice(remaining)} to go`
+                      : ""}
+                  </p>
+                </div>
+                {item.description && (
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {item.description}
+                  </p>
+                )}
+                <FieldGroup>
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    onClick={() => start("contribute")}
+                    disabled={isFunded}
+                  >
+                    <HeartHandshake data-icon="inline-start" />
+                    {isFunded ? "Fully funded 🎉" : "Contribute"}
+                  </Button>
+                </FieldGroup>
+                <p className="text-center text-xs text-muted-foreground">
+                  {item.itemType === "cash_fund"
+                    ? "Contribute any amount toward this fund."
+                    : "Chip in any amount — give this gift together."}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="font-serif text-2xl font-semibold text-foreground">
+                    {formatPrice(item.price)}
+                  </span>
+                  <StarRating rating={item.rating} reviews={item.reviews} />
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {item.description}
+                </p>
+                <FieldGroup>
+                  <Button size="lg" className="w-full" onClick={() => start("buy")}>
+                    <ShoppingBag data-icon="inline-start" />
+                    Buy this gift · {formatPrice(item.price)}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full"
+                    onClick={() => start("reserve")}
+                  >
+                    <Clock data-icon="inline-start" />
+                    Reserve for later
+                  </Button>
+                </FieldGroup>
+                <p className="text-center text-xs text-muted-foreground">
+                  Secure checkout powered by Shopify across {item.merchant} and
+                  40+ merchants.
+                </p>
+              </>
+            )}
           </>
         )}
 
@@ -233,12 +351,20 @@ export function GiftDialog({
           <>
             <DialogHeader>
               <DialogTitle className="font-serif text-xl">
-                {intent === "buy" ? "Complete your gift" : "Reserve this gift"}
+                {intent === "buy"
+                  ? "Complete your gift"
+                  : intent === "reserve"
+                    ? "Reserve this gift"
+                    : "Make a contribution"}
               </DialogTitle>
               <DialogDescription>
                 {intent === "buy"
                   ? "We'll let the couple know it's from you."
-                  : "We'll hold this gift for 15 minutes so no one else can buy it while you check out."}
+                  : intent === "reserve"
+                    ? "We'll hold this gift for 15 minutes so no one else can buy it while you check out."
+                    : `Chip in any amount toward ${item.title}. ${
+                        remaining > 0 ? `${formatPrice(remaining)} to go.` : ""
+                      }`}
               </DialogDescription>
             </DialogHeader>
             <FieldGroup>
@@ -251,8 +377,48 @@ export function GiftDialog({
                   onChange={(e) => setName(e.target.value)}
                 />
               </Field>
+              {intent === "contribute" && (
+                <Field>
+                  <FieldLabel htmlFor="contrib-amount">Amount (USD)</FieldLabel>
+                  <Input
+                    id="contrib-amount"
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="decimal"
+                    placeholder={remaining > 0 ? String(remaining) : "50"}
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                  {remaining > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {[25, 50, 100].map((preset) => (
+                        <Button
+                          key={preset}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAmount(String(preset))}
+                        >
+                          {formatPrice(preset)}
+                        </Button>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAmount(String(remaining))}
+                      >
+                        Cover the rest
+                      </Button>
+                    </div>
+                  )}
+                </Field>
+              )}
               <Field>
-                <FieldLabel htmlFor="guest-email">Email</FieldLabel>
+                <FieldLabel htmlFor="guest-email">
+                  Email{intent === "contribute" ? " (optional)" : ""}
+                </FieldLabel>
                 <Input
                   id="guest-email"
                   type="email"
@@ -264,18 +430,49 @@ export function GiftDialog({
                   For your receipt and a thank-you note from the couple.
                 </FieldDescription>
               </Field>
+              {intent === "contribute" && (
+                <Field>
+                  <FieldLabel htmlFor="contrib-message">
+                    Message (optional)
+                  </FieldLabel>
+                  <Textarea
+                    id="contrib-message"
+                    rows={2}
+                    placeholder="Wishing you both a lifetime of happiness!"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                  />
+                </Field>
+              )}
             </FieldGroup>
             <div className="flex flex-col gap-2">
               <Button
                 size="lg"
                 className="w-full"
                 onClick={submit}
-                disabled={loading || !name.trim() || !email.trim()}
+                disabled={
+                  loading ||
+                  !name.trim() ||
+                  (intent === "contribute"
+                    ? !(Number(amount) > 0)
+                    : !email.trim())
+                }
               >
                 {loading ? (
                   <>
                     <Loader2 data-icon="inline-start" className="animate-spin" />
-                    {intent === "buy" ? "Processing..." : "Reserving..."}
+                    {intent === "buy"
+                      ? "Processing..."
+                      : intent === "reserve"
+                        ? "Reserving..."
+                        : "Sending..."}
+                  </>
+                ) : intent === "contribute" ? (
+                  <>
+                    <HeartHandshake data-icon="inline-start" />
+                    Contribute{Number(amount) > 0
+                      ? ` ${formatPrice(Number(amount))}`
+                      : ""}
                   </>
                 ) : intent === "buy" ? (
                   item.checkoutUrl ? (
@@ -370,12 +567,18 @@ export function GiftDialog({
                 <Check className="size-7" />
               </span>
               <DialogTitle className="font-serif text-2xl">
-                {intent === "buy" ? "Gift sent!" : "Gift reserved!"}
+                {intent === "buy"
+                  ? "Gift sent!"
+                  : intent === "reserve"
+                    ? "Gift reserved!"
+                    : "Thank you for contributing!"}
               </DialogTitle>
               <DialogDescription>
                 {intent === "buy"
                   ? `Thank you, ${name}. The couple will be thrilled.`
-                  : `Reserved for you, ${name}. Complete your purchase before the timer runs out.`}
+                  : intent === "reserve"
+                    ? `Reserved for you, ${name}. Complete your purchase before the timer runs out.`
+                    : `Your contribution means the world, ${name}. The couple will be so grateful.`}
               </DialogDescription>
             </DialogHeader>
             {intent === "reserve" && (

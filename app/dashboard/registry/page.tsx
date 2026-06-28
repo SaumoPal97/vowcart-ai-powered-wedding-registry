@@ -30,7 +30,7 @@ export default async function RegistryPage() {
         }
       />
       <div className="p-4 sm:p-6">
-        <RegistryManager initialItems={items} />
+        <RegistryManager initialItems={items} couple={couple} />
       </div>
     </>
   )

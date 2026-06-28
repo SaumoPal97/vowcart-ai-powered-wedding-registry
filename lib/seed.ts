@@ -106,9 +106,9 @@ export async function runSeed(): Promise<{ products: number; items: number }> {
       itemCount++
       await client.query(
         `INSERT INTO registry_items
-           (id, registry_id, product_id, merchant, title, image, price, rating, reviews, description, category, priority, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-         ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, priority = EXCLUDED.priority`,
+           (id, registry_id, product_id, merchant, title, image, price, rating, reviews, description, category, priority, status, is_group_gift)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+         ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, priority = EXCLUDED.priority, is_group_gift = EXCLUDED.is_group_gift`,
         [
           itemId,
           DEMO_REGISTRY_ID,
@@ -123,8 +123,23 @@ export async function runSeed(): Promise<{ products: number; items: number }> {
           product.category,
           priorityToDbMap[s.priority],
           statusToDbMap[s.status],
+          Boolean(s.isGroupGift),
         ],
       )
+      // Seed a couple of contributions on the group-gift item so the public
+      // page shows real progress out of the box.
+      if (s.isGroupGift) {
+        await client.query(
+          `DELETE FROM gift_contributions WHERE registry_item_id = $1 AND guest_email LIKE 'seed-%'`,
+          [itemId],
+        )
+        await client.query(
+          `INSERT INTO gift_contributions (registry_item_id, guest_name, guest_email, amount, message)
+           VALUES ($1,'The Patels','seed-patels@example.com',75,'So happy for you both!'),
+                  ($1,'Marcus Lee','seed-marcus@example.com',75,'Cook up something wonderful.')`,
+          [itemId],
+        )
+      }
       if (s.status === "purchased" && s.purchasedBy) {
         await client.query(
           `INSERT INTO purchases
@@ -142,6 +157,33 @@ export async function runSeed(): Promise<{ products: number; items: number }> {
         )
       }
     }
+
+    // A demo cash fund (honeymoon) with a few contributions, so the public
+    // registry showcases cash funds + group gifting out of the box.
+    const cashFundId = `${DEMO_REGISTRY_ID.slice(0, 24)}00000000cf01`
+    await client.query(
+      `INSERT INTO registry_items
+         (id, registry_id, product_id, merchant, title, image, price, rating, reviews, description, category, priority, status, item_type, is_group_gift)
+       VALUES ($1,$2,NULL,'Cash Fund','Honeymoon in Italy',$3,3000,0,0,$4,'Travel','NICE_TO_HAVE','AVAILABLE','cash_fund',true)
+       ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, price = EXCLUDED.price, image = EXCLUDED.image, item_type = EXCLUDED.item_type, is_group_gift = EXCLUDED.is_group_gift`,
+      [
+        cashFundId,
+        DEMO_REGISTRY_ID,
+        "https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?auto=format&fit=crop&w=1200&q=70",
+        "Help us explore the Amalfi Coast on our dream honeymoon — every contribution takes us one step closer.",
+      ],
+    )
+    await client.query(
+      `DELETE FROM gift_contributions WHERE registry_item_id = $1 AND guest_email LIKE 'seed-%'`,
+      [cashFundId],
+    )
+    await client.query(
+      `INSERT INTO gift_contributions (registry_item_id, guest_name, guest_email, amount, message)
+       VALUES ($1,'Grandma Rose','seed-rose@example.com',250,'For a magical trip!'),
+              ($1,'The Okafor Family','seed-okafor@example.com',400,'Enjoy every moment.'),
+              ($1,'Sofia & Liam','seed-sofia@example.com',200,'Buon viaggio!')`,
+      [cashFundId],
+    )
 
     // Merchant account + first user (separate identity from the couple).
     await client.query(

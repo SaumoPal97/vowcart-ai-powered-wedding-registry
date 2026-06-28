@@ -26,6 +26,10 @@ interface ItemRow {
   guest_name: string | null
   guest_email: string | null
   purchased_at: string | null
+  is_group_gift?: boolean
+  item_type?: string
+  contributed?: string | null
+  contributor_count?: number | null
 }
 
 const statusFromDb: Record<ItemRow["status"], ItemStatus> = {
@@ -68,6 +72,10 @@ function rowToItem(r: ItemRow): RegistryItem {
     purchaseDate: r.purchased_at
       ? new Date(r.purchased_at).toISOString().slice(0, 10)
       : undefined,
+    itemType: (r.item_type as RegistryItem["itemType"]) ?? "product",
+    isGroupGift: r.is_group_gift ?? false,
+    contributed: r.contributed != null ? Number(r.contributed) : 0,
+    contributorCount: r.contributor_count != null ? Number(r.contributor_count) : 0,
   }
 }
 
@@ -95,10 +103,15 @@ export async function getRegistryItemsByCoupleId(
 ): Promise<RegistryItem[]> {
   if (!isDbConfigured()) return buildSeedItems()
   const { rows } = await query<ItemRow>(
-    `SELECT ri.*, p.guest_name, p.guest_email, p.purchased_at
+    `SELECT ri.*, p.guest_name, p.guest_email, p.purchased_at,
+            gc.total AS contributed, gc.n AS contributor_count
        FROM registry_items ri
        JOIN registries r ON r.id = ri.registry_id
        LEFT JOIN purchases p ON p.registry_item_id = ri.id
+       LEFT JOIN (
+         SELECT registry_item_id, SUM(amount) AS total, COUNT(*) AS n
+           FROM gift_contributions GROUP BY registry_item_id
+       ) gc ON gc.registry_item_id = ri.id
       WHERE r.couple_id = $1
       ORDER BY ri.created_at ASC`,
     [coupleId],
@@ -111,11 +124,16 @@ export async function getRegistryItemsBySlug(
 ): Promise<RegistryItem[]> {
   if (!isDbConfigured()) return buildSeedItems()
   const { rows } = await query<ItemRow>(
-    `SELECT ri.*, p.guest_name, p.guest_email, p.purchased_at
+    `SELECT ri.*, p.guest_name, p.guest_email, p.purchased_at,
+            gc.total AS contributed, gc.n AS contributor_count
        FROM registry_items ri
        JOIN registries r ON r.id = ri.registry_id
        JOIN couples c ON c.id = r.couple_id
        LEFT JOIN purchases p ON p.registry_item_id = ri.id
+       LEFT JOIN (
+         SELECT registry_item_id, SUM(amount) AS total, COUNT(*) AS n
+           FROM gift_contributions GROUP BY registry_item_id
+       ) gc ON gc.registry_item_id = ri.id
       WHERE c.slug = $1
       ORDER BY ri.created_at ASC`,
     [slug],
@@ -164,6 +182,9 @@ export async function addRegistryItem(
     productGid?: string
     variantId?: string
     checkoutUrl?: string
+    description?: string
+    itemType?: RegistryItem["itemType"]
+    isGroupGift?: boolean
   },
 ): Promise<RegistryItem | null> {
   const p = input.product
@@ -176,11 +197,13 @@ export async function addRegistryItem(
     price: input.price ?? p?.price ?? 0,
     rating: p?.rating ?? 0,
     reviews: p?.reviews ?? 0,
-    description: p?.description ?? "",
+    description: input.description ?? p?.description ?? "",
     category: input.category ?? p?.category ?? "Home Decor",
     priority: priorityToDb[input.priority ?? "nice-to-have"],
     variantId: input.variantId ?? p?.variantId ?? null,
     checkoutUrl: input.checkoutUrl ?? p?.checkoutUrl ?? null,
+    itemType: input.itemType ?? "product",
+    isGroupGift: input.isGroupGift ?? input.itemType === "cash_fund",
   }
   if (!isDbConfigured()) {
     return {
@@ -198,14 +221,18 @@ export async function addRegistryItem(
       productGid: item.productId ?? undefined,
       variantId: item.variantId ?? undefined,
       checkoutUrl: item.checkoutUrl ?? undefined,
+      itemType: item.itemType,
+      isGroupGift: item.isGroupGift,
+      contributed: 0,
+      contributorCount: 0,
     }
   }
   const registryId = await getRegistryIdForCouple(coupleId)
   if (!registryId) return null
   const { rows } = await query<ItemRow>(
     `INSERT INTO registry_items
-       (registry_id, product_id, merchant, title, image, price, rating, reviews, description, category, priority, status, variant_id, checkout_url)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'AVAILABLE',$12,$13)
+       (registry_id, product_id, merchant, title, image, price, rating, reviews, description, category, priority, status, variant_id, checkout_url, item_type, is_group_gift)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'AVAILABLE',$12,$13,$14,$15)
      RETURNING *, NULL::text AS guest_name, NULL::text AS guest_email, NULL::timestamptz AS purchased_at`,
     [
       registryId,
@@ -221,6 +248,8 @@ export async function addRegistryItem(
       item.priority,
       item.variantId,
       item.checkoutUrl,
+      item.itemType,
+      item.isGroupGift,
     ],
   )
   return rowToItem(rows[0])
@@ -228,7 +257,12 @@ export async function addRegistryItem(
 
 export async function updateRegistryItem(
   id: string,
-  patch: { priority?: ItemPriority; status?: ItemStatus; image?: string },
+  patch: {
+    priority?: ItemPriority
+    status?: ItemStatus
+    image?: string
+    isGroupGift?: boolean
+  },
 ): Promise<RegistryItem | null> {
   if (!isDbConfigured()) {
     const seed = buildSeedItems().find((i) => i.id === id)
@@ -241,6 +275,7 @@ export async function updateRegistryItem(
         priority = COALESCE($2, priority),
         status = COALESCE($3, status),
         image = COALESCE($4, image),
+        is_group_gift = COALESCE($5, is_group_gift),
         updated_at = now()
       WHERE id = $1
       RETURNING *, NULL::text AS guest_name, NULL::text AS guest_email, NULL::timestamptz AS purchased_at`,
@@ -249,9 +284,84 @@ export async function updateRegistryItem(
       patch.priority ? priorityToDb[patch.priority] : null,
       patch.status ? statusToDb[patch.status] : null,
       patch.image || null,
+      typeof patch.isGroupGift === "boolean" ? patch.isGroupGift : null,
     ],
   )
   return rows[0] ? rowToItem(rows[0]) : null
+}
+
+// In-memory contribution store for the seed/sandbox fallback (no DB locally).
+const seedContributions = new Map<string, { total: number; count: number }>()
+
+export interface ContributionResult {
+  contributed: number
+  contributorCount: number
+  goal: number
+  funded: boolean
+}
+
+/** Record a guest's contribution toward a group gift / cash fund. */
+export async function addContribution(
+  itemId: string,
+  input: { guestName: string; guestEmail?: string; amount: number; message?: string },
+): Promise<ContributionResult | null> {
+  if (input.amount <= 0) return null
+
+  if (!isDbConfigured()) {
+    const seed = buildSeedItems().find((i) => i.id === itemId)
+    const goal = seed?.price ?? 0
+    const prev = seedContributions.get(itemId) ?? { total: 0, count: 0 }
+    const next = { total: prev.total + input.amount, count: prev.count + 1 }
+    seedContributions.set(itemId, next)
+    return {
+      contributed: next.total,
+      contributorCount: next.count,
+      goal,
+      funded: goal > 0 && next.total >= goal,
+    }
+  }
+
+  await query(
+    `INSERT INTO gift_contributions (registry_item_id, guest_name, guest_email, amount, message)
+     VALUES ($1,$2,$3,$4,$5)`,
+    [
+      itemId,
+      input.guestName,
+      input.guestEmail ?? null,
+      input.amount,
+      input.message ?? null,
+    ],
+  )
+  const { rows } = await query<{
+    total: string | null
+    n: number
+    goal: string
+  }>(
+    `SELECT COALESCE(SUM(c.amount), 0) AS total,
+            COUNT(c.*) AS n,
+            ri.price AS goal
+       FROM registry_items ri
+       LEFT JOIN gift_contributions c ON c.registry_item_id = ri.id
+      WHERE ri.id = $1
+      GROUP BY ri.price`,
+    [itemId],
+  )
+  if (!rows[0]) return null
+  const contributed = Number(rows[0].total ?? 0)
+  const goal = Number(rows[0].goal)
+  // Once fully funded, mark the gift as purchased so it stops accepting gifts.
+  if (goal > 0 && contributed >= goal) {
+    await query(
+      `UPDATE registry_items SET status = 'PURCHASED', updated_at = now() WHERE id = $1`,
+      [itemId],
+    )
+  }
+  return {
+    contributed,
+    contributorCount: Number(rows[0].n),
+    goal,
+    funded: goal > 0 && contributed >= goal,
+  }
 }
 
 export async function deleteRegistryItem(id: string): Promise<boolean> {

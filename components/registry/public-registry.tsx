@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Image from "next/image"
-import { Gift, Heart, MapPin, Calendar } from "lucide-react"
+import { Gift, Heart, MapPin, Calendar, HeartHandshake } from "lucide-react"
 import { Logo } from "@/components/logo"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ProductCard } from "@/components/registry/product-card"
@@ -64,6 +64,31 @@ export function PublicRegistry({
     } else {
       toast.success("Gift reserved for 15 minutes")
     }
+  }
+
+  function handleContributed(
+    id: string,
+    contributed: number,
+    contributorCount: number,
+    funded: boolean,
+  ) {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === id
+          ? {
+              ...i,
+              contributed,
+              contributorCount,
+              status: funded ? "purchased" : i.status,
+            }
+          : i,
+      ),
+    )
+    toast.success(
+      funded
+        ? "That completes the gift — thank you!"
+        : "Thank you for contributing!",
+    )
   }
 
   return (
@@ -151,32 +176,63 @@ export function PublicRegistry({
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((item) => {
+            const contributable =
+              !!item.isGroupGift || item.itemType === "cash_fund"
+            const funded =
+              contributable && (item.contributed ?? 0) >= item.price
             const claimed = item.status !== "available"
             return (
               <ProductCard
                 key={item.id}
                 product={item}
                 dimmed={item.status === "purchased"}
+                hideRating={item.itemType === "cash_fund"}
+                progress={
+                  contributable
+                    ? {
+                        raised: item.contributed ?? 0,
+                        goal: item.price,
+                        contributors: item.contributorCount,
+                      }
+                    : undefined
+                }
                 topLeft={<StatusBadge status={item.status} />}
                 topRight={
-                  item.priority === "must-have" ? (
+                  item.isGroupGift && item.itemType !== "cash_fund" ? (
+                    <Badge variant="secondary" className="gap-1 text-[10px] shadow-sm">
+                      <HeartHandshake className="size-2.5" />
+                      Group gift
+                    </Badge>
+                  ) : item.priority === "must-have" ? (
                     <PriorityBadge priority={item.priority} />
                   ) : undefined
                 }
                 footer={
-                  <Button
-                    variant={claimed ? "outline" : "default"}
-                    size="sm"
-                    className="w-full"
-                    disabled={item.status === "purchased"}
-                    onClick={() => openGift(item)}
-                  >
-                    {item.status === "purchased"
-                      ? "Already gifted"
-                      : item.status === "reserved"
-                        ? "Reserved · Buy anyway"
-                        : "Gift this"}
-                  </Button>
+                  contributable ? (
+                    <Button
+                      variant={funded ? "outline" : "default"}
+                      size="sm"
+                      className="w-full"
+                      disabled={funded}
+                      onClick={() => openGift(item)}
+                    >
+                      {funded ? "Fully funded 🎉" : "Contribute"}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant={claimed ? "outline" : "default"}
+                      size="sm"
+                      className="w-full"
+                      disabled={item.status === "purchased"}
+                      onClick={() => openGift(item)}
+                    >
+                      {item.status === "purchased"
+                        ? "Already gifted"
+                        : item.status === "reserved"
+                          ? "Reserved · Buy anyway"
+                          : "Gift this"}
+                    </Button>
+                  )
                 }
               />
             )
@@ -197,6 +253,7 @@ export function PublicRegistry({
         onOpenChange={setOpen}
         slug={slug}
         onComplete={handleComplete}
+        onContributed={handleContributed}
       />
     </div>
   )

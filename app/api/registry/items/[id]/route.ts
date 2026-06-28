@@ -18,6 +18,7 @@ export async function PATCH(
       priority: body.priority,
       status: body.status,
       image: body.image,
+      isGroupGift: body.isGroupGift,
     })
     if (!item) {
       return NextResponse.json({ error: "Item not found" }, { status: 404 })

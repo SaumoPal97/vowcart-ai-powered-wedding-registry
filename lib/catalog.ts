@@ -432,8 +432,9 @@ export const seedRegistryItems: {
   purchasedByEmail?: string
   purchaseDate?: string
   thankYouSent?: boolean
+  isGroupGift?: boolean
 }[] = [
-  { productId: "p1", status: "available", priority: "must-have" },
+  { productId: "p1", status: "available", priority: "must-have", isGroupGift: true },
   {
     productId: "p4",
     status: "purchased",

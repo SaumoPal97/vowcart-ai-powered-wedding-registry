@@ -23,9 +23,9 @@ const FREE = [
 
 const PREMIUM = [
   "Everything in Free",
-  "Premium registry themes & QR styles",
   "Unlimited AI Copilot edits",
   "AI-generated thank-you notes (every tone)",
+  "Group gifting & cash funds",
   "Downloadable registry PDF",
 ]
 

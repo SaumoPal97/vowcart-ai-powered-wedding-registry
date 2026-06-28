@@ -9,6 +9,7 @@ export type ProductCategory =
 
 export type ItemStatus = "available" | "reserved" | "purchased"
 export type ItemPriority = "must-have" | "nice-to-have"
+export type RegistryItemType = "product" | "cash_fund"
 
 export interface Product {
   id: string
@@ -38,6 +39,13 @@ export interface RegistryItem extends Product {
   purchasedBy?: string
   purchasedByEmail?: string
   purchaseDate?: string
+  // Group gifting / cash funds: when isGroupGift (or itemType === "cash_fund"),
+  // guests contribute money toward `price` (the goal). `contributed` is the sum
+  // raised so far across `contributorCount` guests.
+  itemType?: RegistryItemType
+  isGroupGift?: boolean
+  contributed?: number
+  contributorCount?: number
 }
 
 export interface Couple {

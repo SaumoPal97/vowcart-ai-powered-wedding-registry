@@ -1,10 +1,20 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Search, Trash2, Star, Gift, RefreshCw, ImageIcon } from "lucide-react"
+import {
+  Search,
+  Trash2,
+  Star,
+  Gift,
+  RefreshCw,
+  ImageIcon,
+  HeartHandshake,
+} from "lucide-react"
 import { ProductCard } from "@/components/registry/product-card"
 import { ReplaceProductDialog } from "@/components/dashboard/replace-product-dialog"
 import { ItemPhotoDialog } from "@/components/dashboard/item-photo-dialog"
+import { AddCashFundDialog } from "@/components/dashboard/add-cash-fund-dialog"
+import { DownloadRegistryPdf } from "@/components/dashboard/download-registry-pdf"
 import { StatusBadge, PriorityBadge } from "@/components/registry/badges"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,15 +33,17 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CATEGORIES, formatPrice } from "@/lib/data"
-import type { ItemPriority, ItemStatus, RegistryItem } from "@/lib/types"
+import type { Couple, ItemPriority, ItemStatus, RegistryItem } from "@/lib/types"
 import { toast } from "sonner"
 
 type Filter = "all" | ItemStatus
 
 export function RegistryManager({
   initialItems,
+  couple,
 }: {
   initialItems: RegistryItem[]
+  couple: Couple
 }) {
   const [items, setItems] = useState<RegistryItem[]>(initialItems)
   const [filter, setFilter] = useState<Filter>("all")
@@ -73,6 +85,36 @@ export function RegistryManager({
 
   function handlePhotoUpdated(id: string, image: string) {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, image } : i)))
+  }
+
+  function handleCashFundAdded(item: RegistryItem) {
+    setItems((prev) => [...prev, item])
+  }
+
+  async function toggleGroupGift(id: string) {
+    const current = items.find((i) => i.id === id)
+    if (!current) return
+    const next = !current.isGroupGift
+    const snapshot = items
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, isGroupGift: next } : i)),
+    )
+    try {
+      const res = await fetch(`/api/registry/items/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isGroupGift: next }),
+      })
+      if (!res.ok) throw new Error("failed")
+      toast.success(
+        next
+          ? "Group gifting on — guests can chip in together"
+          : "Group gifting turned off",
+      )
+    } catch {
+      setItems(snapshot)
+      toast.error("Couldn't update group gifting. Please try again.")
+    }
   }
 
   async function removeItem(id: string) {
@@ -178,6 +220,8 @@ export function RegistryManager({
               </SelectGroup>
             </SelectContent>
           </Select>
+          <AddCashFundDialog onAdded={handleCashFundAdded} />
+          <DownloadRegistryPdf couple={couple} items={items} />
         </div>
       </div>
 
@@ -200,6 +244,16 @@ export function RegistryManager({
               key={item.id}
               product={item}
               dimmed={item.status === "purchased"}
+              hideRating={item.itemType === "cash_fund"}
+              progress={
+                item.isGroupGift || item.itemType === "cash_fund"
+                  ? {
+                      raised: item.contributed ?? 0,
+                      goal: item.price,
+                      contributors: item.contributorCount,
+                    }
+                  : undefined
+              }
               topLeft={<StatusBadge status={item.status} />}
               topRight={<PriorityBadge priority={item.priority} />}
               footer={
@@ -219,6 +273,19 @@ export function RegistryManager({
                     >
                       <Star data-icon="inline-start" />
                       {item.priority === "must-have" ? "Must-have" : "Nice"}
+                    </Button>
+                    <Button
+                      variant={item.isGroupGift ? "default" : "ghost"}
+                      size="icon"
+                      onClick={() => toggleGroupGift(item.id)}
+                      disabled={
+                        item.status === "purchased" ||
+                        item.itemType === "cash_fund"
+                      }
+                      aria-label="Toggle group gifting"
+                      title="Allow guests to chip in together"
+                    >
+                      <HeartHandshake />
                     </Button>
                     <Button
                       variant="ghost"

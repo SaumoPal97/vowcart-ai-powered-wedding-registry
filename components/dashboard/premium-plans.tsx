@@ -26,7 +26,6 @@ const PREMIUM = [
   "Premium registry themes & QR styles",
   "Unlimited AI Copilot edits",
   "AI-generated thank-you notes (every tone)",
-  "Custom vanity domain (your-names.com)",
   "Downloadable registry PDF",
 ]
 

@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Gift,
   Search,
-  Sparkles,
   HeartHandshake,
   Settings,
   ExternalLink,
@@ -32,7 +31,6 @@ const NAV = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { title: "My Registry", href: "/dashboard/registry", icon: Gift },
   { title: "Find Gifts", href: "/dashboard/search", icon: Search },
-  { title: "AI Copilot", href: "/dashboard/copilot", icon: Sparkles },
   { title: "Thank-Yous", href: "/dashboard/thank-yous", icon: HeartHandshake },
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
 ]

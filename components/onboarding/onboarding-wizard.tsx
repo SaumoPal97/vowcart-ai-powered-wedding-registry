@@ -52,7 +52,7 @@ export function OnboardingWizard() {
     ? slugify(slug)
     : slugify(`${partnerOne} and ${partnerTwo}`)
   const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [size, setSize] = useState(50)
+  const [size, setSize] = useState(25)
   const [removed, setRemoved] = useState<Set<string>>(new Set())
   const [generated, setGenerated] = useState<Product[]>([])
   const [built, setBuilt] = useState(false)

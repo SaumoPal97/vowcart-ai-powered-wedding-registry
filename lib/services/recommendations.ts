@@ -274,3 +274,62 @@ export async function getRecommendations(
   await setCachedRecommendations(hash, groups)
   return { groups, source: ucp ? "ucp" : "fallback" }
 }
+
+// Broad per-category top-up queries used to reach the couple's chosen size.
+const CATEGORY_QUERIES: { category: ProductCategory; query: string }[] = [
+  { category: "Kitchen", query: "kitchen cookware small appliances" },
+  { category: "Dining", query: "dinnerware glassware flatware serving" },
+  { category: "Bedroom", query: "bedding sheets duvet pillows" },
+  { category: "Bathroom", query: "bath towels bath mat robe" },
+  { category: "Home Decor", query: "home decor throw lamp wall art vase" },
+  { category: "Smart Home", query: "smart home devices speaker lighting" },
+  { category: "Travel", query: "luggage weekender travel accessories" },
+]
+
+/**
+ * Build a flat starter registry of (up to) `size` unique products for
+ * onboarding. Starts from the themed recommendations, then tops up via UCP
+ * across categories and finally the seed catalog so the count matches the
+ * couple's chosen registry size whenever supply allows.
+ */
+export async function buildStarterRegistry(
+  q: Questionnaire,
+  size: number,
+): Promise<{ products: Product[]; source: string }> {
+  const target = Math.max(1, Math.min(size, 100))
+  const { groups, source } = await getRecommendations(q)
+
+  const byKey = new Map<string, Product>()
+  const add = (p: Product) => {
+    const key = `${p.productGid ?? p.id}|${p.title.trim().toLowerCase()}`
+    if (!byKey.has(key)) byKey.set(key, p)
+  }
+  groups.flatMap((g) => g.products).forEach(add)
+
+  // Top up from live UCP across categories until we reach the target. Paginate
+  // within each category (UCP results overlap heavily, so one page is rarely
+  // enough) and move on once a category is exhausted.
+  if (byKey.size < target && isUcpEnabled()) {
+    for (const { category, query } of CATEGORY_QUERIES) {
+      if (byKey.size >= target) break
+      let cursor: string | undefined
+      for (let page = 0; page < 4 && byKey.size < target; page++) {
+        try {
+          const r = await searchCatalog(query, { category, limit: 24, cursor })
+          r.products.forEach(add)
+          if (!r.hasNextPage || !r.cursor) break
+          cursor = r.cursor
+        } catch {
+          break // skip the rest of this category on error
+        }
+      }
+    }
+  }
+
+  // Final fallback: fill any remainder from the seed catalog.
+  if (byKey.size < target) {
+    annotateSponsored(catalog).forEach(add)
+  }
+
+  return { products: [...byKey.values()].slice(0, target), source }
+}

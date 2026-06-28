@@ -527,7 +527,7 @@ export const lifestyleQuestions: {
   },
 ]
 
-export const registrySizes = [25, 50, 100]
+export const registrySizes = [10, 25, 40]
 
 // ---------------------------------------------------------------------------
 // Analytics + insights fallback (computed live from DynamoDB in production).

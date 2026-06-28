@@ -107,7 +107,7 @@ export function ProductInsightsTable({
               <TableHead>Product</TableHead>
               <TableHead className="hidden sm:table-cell">Category</TableHead>
               <TableHead className="text-right">Added</TableHead>
-              <TableHead className="text-right">Purchased</TableHead>
+              <TableHead className="hidden text-right sm:table-cell">Purchased</TableHead>
               <TableHead className="text-right">Conv.</TableHead>
               <TableHead className="hidden text-right md:table-cell">Avg. price</TableHead>
               <TableHead className="w-8" />
@@ -116,14 +116,17 @@ export function ProductInsightsTable({
           <TableBody>
             {rows.map((p) => (
               <TableRow key={p.productId} className="group">
-                <TableCell>
+                <TableCell className="max-w-[46vw] sm:max-w-none">
                   <Link
                     href={`/merchant/products/${p.productId}`}
                     className="flex items-center gap-2 font-medium text-foreground hover:underline"
                   >
-                    {p.title}
+                    <span className="truncate">{p.title}</span>
                     {p.isSponsored && (
-                      <Badge variant="secondary" className="gap-1 text-[10px]">
+                      <Badge
+                        variant="secondary"
+                        className="hidden shrink-0 gap-1 text-[10px] sm:inline-flex"
+                      >
                         <Megaphone className="size-2.5" />
                         Sponsored
                       </Badge>
@@ -136,7 +139,7 @@ export function ProductInsightsTable({
                 <TableCell className="text-right font-medium text-foreground">
                   {p.added.toLocaleString()}
                 </TableCell>
-                <TableCell className="text-right text-muted-foreground">
+                <TableCell className="hidden text-right text-muted-foreground sm:table-cell">
                   {p.purchased.toLocaleString()}
                 </TableCell>
                 <TableCell className="text-right">

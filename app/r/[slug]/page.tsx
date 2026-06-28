@@ -6,6 +6,7 @@ import {
   getRegistryItemsBySlug,
   getRegistryIdBySlug,
 } from "@/lib/repos/registry"
+import { getReservedItemIds } from "@/lib/services/reservations"
 import { recordEvent } from "@/lib/services/analytics"
 
 export async function generateMetadata({
@@ -39,8 +40,17 @@ export default async function PublicRegistryPage({
     getRegistryIdBySlug(slug),
   ])
 
+  // Overlay live 15-minute reservation holds so a gift someone is buying shows
+  // as "reserved" to every other guest, not just the one who placed the hold.
+  const reservedIds = await getReservedItemIds(
+    items.filter((i) => i.status === "available").map((i) => i.id),
+  )
+  const itemsWithHolds = items.map((i) =>
+    reservedIds.has(i.id) ? { ...i, status: "reserved" as const } : i,
+  )
+
   // Record a registry view (fire-and-forget; never block the render).
   void recordEvent(registryId ?? slug, "registry_view", { slug })
 
-  return <PublicRegistry couple={couple} items={items} slug={slug} />
+  return <PublicRegistry couple={couple} items={itemsWithHolds} slug={slug} />
 }

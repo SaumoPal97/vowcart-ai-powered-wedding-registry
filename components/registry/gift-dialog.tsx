@@ -67,9 +67,13 @@ export function GiftDialog({
   // 15-minute reservation window (in seconds remaining).
   const [secondsLeft, setSecondsLeft] = useState(15 * 60)
 
-  // Tick the reservation countdown while a reserved gift is shown.
+  // Tick the 15-minute hold countdown — while a reserved gift is shown, and
+  // while a buyer is finishing checkout (the gift is held for them meanwhile).
   useEffect(() => {
-    if (!(step === "success" && intent === "reserve")) return
+    const active =
+      (step === "success" && intent === "reserve") ||
+      (step === "confirm" && intent === "buy")
+    if (!active) return
     setSecondsLeft(15 * 60)
     const id = setInterval(() => {
       setSecondsLeft((s) => (s <= 1 ? 0 : s - 1))
@@ -122,12 +126,31 @@ export function GiftDialog({
     })()
   }
 
+  // Places a best-effort 15-minute hold so no one else can claim the gift
+  // while this guest completes checkout. Never blocks the purchase itself.
+  async function holdForCheckout() {
+    if (!item) return
+    try {
+      await fetch("/api/reservation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registryItemId: item.id, reservedBy: name, slug }),
+      })
+    } catch {
+      // Hold is opportunistic — proceed to checkout regardless.
+    }
+  }
+
   // Primary action from the form step.
   async function submit() {
     if (!item) return
     if (intent === "contribute") return submitContribute()
     if (!name.trim() || !email.trim()) return
     if (intent === "reserve") return submitReserve()
+    // Buy: hold the gift for 15 minutes, then hand off to checkout.
+    setLoading(true)
+    await holdForCheckout()
+    setLoading(false)
     // UCP buy → hand off to the merchant's real Shopify checkout, then confirm.
     if (item.checkoutUrl) {
       window.open(item.checkoutUrl, "_blank", "noopener,noreferrer")
@@ -517,6 +540,15 @@ export function GiftDialog({
                 couple sees it&apos;s claimed.
               </DialogDescription>
             </DialogHeader>
+            <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/50 py-3 text-sm">
+              <Clock className="size-4 text-accent" />
+              <span className="text-muted-foreground">
+                Held for you —
+              </span>
+              <span className="font-mono font-semibold tabular-nums text-foreground">
+                {timer}
+              </span>
+            </div>
             <div className="rounded-xl border border-border bg-secondary/50 p-4 text-sm text-muted-foreground">
               Didn&apos;t see the tab open?{" "}
               <a

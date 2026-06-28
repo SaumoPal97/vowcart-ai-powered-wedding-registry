@@ -97,6 +97,24 @@ export async function createReservation(input: {
   }
 }
 
+/**
+ * Returns the set of item ids that currently hold a live reservation lock.
+ * Used to overlay "reserved" status onto the public registry so a hold is
+ * visible to every guest (not just the one who placed it).
+ */
+export async function getReservedItemIds(
+  registryItemIds: string[],
+): Promise<Set<string>> {
+  if (registryItemIds.length === 0) return new Set()
+  const results = await Promise.all(
+    registryItemIds.map(async (id) => ({
+      id,
+      reserved: (await getReservation(id)) != null,
+    })),
+  )
+  return new Set(results.filter((r) => r.reserved).map((r) => r.id))
+}
+
 export async function deleteReservation(registryItemId: string): Promise<void> {
   if (!isDynamoConfigured()) {
     memoryLocks.delete(registryItemId)

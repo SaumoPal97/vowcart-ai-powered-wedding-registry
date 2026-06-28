@@ -274,3 +274,58 @@ export async function getRecommendations(
   await setCachedRecommendations(hash, groups)
   return { groups, source: ucp ? "ucp" : "fallback" }
 }
+
+// Broad per-category top-up queries used to reach the couple's chosen size.
+const CATEGORY_QUERIES: { category: ProductCategory; query: string }[] = [
+  { category: "Kitchen", query: "kitchen cookware small appliances" },
+  { category: "Dining", query: "dinnerware glassware flatware serving" },
+  { category: "Bedroom", query: "bedding sheets duvet pillows" },
+  { category: "Bathroom", query: "bath towels bath mat robe" },
+  { category: "Home Decor", query: "home decor throw lamp wall art vase" },
+  { category: "Smart Home", query: "smart home devices speaker lighting" },
+  { category: "Travel", query: "luggage weekender travel accessories" },
+]
+
+/**
+ * Build a flat starter registry of (up to) `size` unique products for
+ * onboarding. Starts from the themed recommendations, then tops up via UCP
+ * across categories and finally the seed catalog so the count matches the
+ * couple's chosen registry size whenever supply allows.
+ */
+export async function buildStarterRegistry(
+  q: Questionnaire,
+  size: number,
+): Promise<{ products: Product[]; source: string }> {
+  const target = Math.max(1, Math.min(size, 100))
+  const { groups, source } = await getRecommendations(q)
+
+  const byKey = new Map<string, Product>()
+  const add = (p: Product) => {
+    const key = `${p.productGid ?? p.id}|${p.title.trim().toLowerCase()}`
+    if (!byKey.has(key)) byKey.set(key, p)
+  }
+  groups.flatMap((g) => g.products).forEach(add)
+
+  // Top up from live UCP across categories until we reach the target.
+  if (byKey.size < target && isUcpEnabled()) {
+    for (const { category, query } of CATEGORY_QUERIES) {
+      if (byKey.size >= target) break
+      try {
+        const { products } = await searchCatalog(query, {
+          category,
+          limit: Math.min(24, target),
+        })
+        products.forEach(add)
+      } catch {
+        // Ignore a failed category and keep going.
+      }
+    }
+  }
+
+  // Final fallback: fill any remainder from the seed catalog.
+  if (byKey.size < target) {
+    annotateSponsored(catalog).forEach(add)
+  }
+
+  return { products: [...byKey.values()].slice(0, target), source }
+}

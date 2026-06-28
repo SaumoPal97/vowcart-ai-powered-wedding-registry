@@ -17,7 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ProductCard } from "@/components/registry/product-card"
 import { AiBuilding } from "@/components/onboarding/ai-building"
 import { lifestyleQuestions, registrySizes, formatPrice } from "@/lib/data"
-import type { Product, RecommendationGroup } from "@/lib/types"
+import type { Product } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -63,20 +63,18 @@ export function OnboardingWizard() {
   const kept = generated.filter((p) => !removed.has(p.id))
   const estTotal = kept.reduce((sum, p) => sum + p.price, 0)
 
-  // Fetch real AI recommendations, flatten + de-dupe, cap by chosen size.
+  // Build a registry sized to the couple's chosen size (AI + UCP + catalog
+  // top-up), so the number of gifts matches what they picked.
   async function buildRegistry() {
     setPhase("building")
     try {
-      const res = await fetch("/api/ai/recommendations", {
+      const res = await fetch("/api/onboarding/registry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questionnaire: { ...answers, size } }),
       })
-      const data = (await res.json()) as { groups?: RecommendationGroup[] }
-      const flat = (data.groups ?? []).flatMap((g) => g.products)
-      const unique = [...new Map(flat.map((p) => [p.id, p])).values()]
-      const cap = size >= 100 ? unique.length : size >= 50 ? 16 : 8
-      setGenerated(unique.slice(0, cap))
+      const data = (await res.json()) as { products?: Product[] }
+      setGenerated(data.products ?? [])
     } catch {
       toast.error("Couldn't build your registry. Please try again.")
       setGenerated([])

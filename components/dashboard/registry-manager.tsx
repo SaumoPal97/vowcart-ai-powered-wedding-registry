@@ -161,7 +161,7 @@ export function RegistryManager({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
         <ToggleGroup
           value={[filter]}
           onValueChange={(v) => v[0] && setFilter(v[0] as Filter)}
@@ -179,7 +179,7 @@ export function RegistryManager({
           </ToggleGroupItem>
         </ToggleGroup>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <InputGroup className="sm:w-64">
             <InputGroupInput
               placeholder="Search gifts..."

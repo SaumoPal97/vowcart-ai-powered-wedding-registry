@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 import { buildStarterRegistry } from "@/lib/services/recommendations"
 
-// Topping up across categories can take several UCP round-trips.
-export const maxDuration = 60
+// Topping up across categories (with pagination) can take many UCP round-trips.
+export const maxDuration = 120
 
 export async function POST(request: Request) {
   try {

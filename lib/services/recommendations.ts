@@ -306,18 +306,22 @@ export async function buildStarterRegistry(
   }
   groups.flatMap((g) => g.products).forEach(add)
 
-  // Top up from live UCP across categories until we reach the target.
+  // Top up from live UCP across categories until we reach the target. Paginate
+  // within each category (UCP results overlap heavily, so one page is rarely
+  // enough) and move on once a category is exhausted.
   if (byKey.size < target && isUcpEnabled()) {
     for (const { category, query } of CATEGORY_QUERIES) {
       if (byKey.size >= target) break
-      try {
-        const { products } = await searchCatalog(query, {
-          category,
-          limit: Math.min(24, target),
-        })
-        products.forEach(add)
-      } catch {
-        // Ignore a failed category and keep going.
+      let cursor: string | undefined
+      for (let page = 0; page < 4 && byKey.size < target; page++) {
+        try {
+          const r = await searchCatalog(query, { category, limit: 24, cursor })
+          r.products.forEach(add)
+          if (!r.hasNextPage || !r.cursor) break
+          cursor = r.cursor
+        } catch {
+          break // skip the rest of this category on error
+        }
       }
     }
   }

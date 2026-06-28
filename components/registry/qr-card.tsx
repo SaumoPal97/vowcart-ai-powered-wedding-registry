@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Copy, Download, Share2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,13 @@ export function QrCard({
   className?: string
 }) {
   const svgRef = useRef<HTMLDivElement>(null)
+  // Resolved on the client so the QR encodes the real host (vercel.app, a
+  // custom domain, or localhost) — avoids an SSR/CSR hydration mismatch.
+  const [registryUrl, setRegistryUrl] = useState("")
+
+  useEffect(() => {
+    setRegistryUrl(`${window.location.origin}/r/${slug}`)
+  }, [slug])
 
   function getRegistryUrl() {
     const origin =
@@ -85,7 +92,7 @@ export function QrCard({
           ref={svgRef}
           className="size-44 rounded-2xl border border-border bg-white p-3 shadow-sm"
         >
-          <QrCode value={`vowcart.app/r/${slug}`} />
+          {registryUrl && <QrCode value={registryUrl} />}
         </div>
         <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
           <Button variant="outline" size="lg" onClick={downloadPng}>

@@ -1,0 +1,29 @@
+flowchart TB
+  subgraph Clients["Clients"]
+    C["Couples & Guests (web)"]
+    M["Merchants (web)"]
+  end
+
+  subgraph Vercel["Vercel"]
+    APP["Next.js App Router - SSR, API routes, proxy"]
+    GW["Vercel AI Gateway (LLM)"]
+    BLOB["Vercel Blob (photo uploads)"]
+  end
+
+  subgraph AWS["AWS - keyless via OIDC"]
+    PG[("Aurora PostgreSQL - system of record")]
+    DDB[("DynamoDB - reservation locks TTL, analytics, AI cache")]
+  end
+
+  SHOP["Shopify Universal Commerce Protocol - live catalog + checkout"]
+
+  C -->|"build registry, gift, reserve / contribute"| APP
+  M -->|"merchant portal, anonymized analytics"| APP
+
+  APP -->|"couples, registries, items, purchases, contributions, merchants, campaigns"| PG
+  APP -->|"15-min holds, events, AI cache"| DDB
+  APP -->|"curate, copilot, thank-you notes"| GW
+  APP -->|"product search, checkout handoff"| SHOP
+  APP -->|"upload / serve images"| BLOB
+
+  APP -. "OIDC role (no static keys)" .-> AWS

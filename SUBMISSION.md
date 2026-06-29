@@ -61,6 +61,22 @@ flowchart TB
 
 ---
 
+## Market & why now
+
+**A large, resilient market.** Weddings are one of the most durable consumer-spend categories on earth: roughly **2.1–2.5M weddings per year in the US**, part of a **~$70B+ annual US wedding industry** and a **~$300B+ global market** (widely cited industry estimates). The registry sits at the commerce heart of it — the vast majority of couples create at least one, US guests spend an estimated **$10B+ per year** on wedding gifts, and couples routinely register for **$5,000–7,000+** in products. And the exact same registry primitive powers adjacent, year-round occasions — baby showers, housewarmings, birthdays, holidays — so the model extends well beyond weddings.
+
+**Why today's registries aren't actually universal.** The incumbents — Zola, The Knot, Amazon, Target, Crate & Barrel — build their catalogs through **merchant partnerships and one-off integrations**. Every brand on the platform is the result of a BD deal plus custom engineering, so even a "universal" registry is really a curated set of a few hundred partner brands. "Add any item" usually degrades to "paste a link we can't transact on," and most independent / DTC brands are simply missing. The catalog is gated by business development, not by what couples actually want to shop.
+
+**Why now — UCP changes the unit economics.** Shopify's **Universal Commerce Protocol (UCP)** flips that model. Instead of integrating merchants one at a time, an app gets **programmatic, keyless access to entire commerce catalogs and checkout through a single protocol**. Starting with the **Shopify ecosystem** — millions of merchants and a huge share of modern DTC/independent brands — the addressable product universe jumps from "our partner catalog" to **the open commerce graph**, effectively overnight. That is the entire thesis behind VowCart:
+
+- Couples get a **genuinely universal** registry — any product from any Shopify merchant, actually transactable, not a dead link.
+- The catalog scales with **zero per-merchant BD or integration cost**, making the product viable for a small team and compounding as UCP adoption grows.
+- A broader, more relevant catalog lifts **gift conversion** — which makes the **anonymized demand analytics** we sell to brands meaningfully more valuable.
+
+UCP is the reason a truly universal registry is suddenly buildable — and why the timing is now.
+
+---
+
 ## Inspiration
 
 Wedding registries are stuck in the past. Every store runs its own — so couples end up with three or four registries, and guests bounce between sites just to find something to buy. The result: duplicate gifts, abandoned big-ticket items nobody wants to buy alone, and hours of tedious curation for the couple.

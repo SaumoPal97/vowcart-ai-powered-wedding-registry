@@ -5,7 +5,7 @@ flowchart TB
     M["Merchants<br/>(web)"]
   end
 
-  APP["Next.js App Router — Vercel<br/>SSR · API routes · proxy"]
+  APP["Next.js App Router - Vercel<br/>SSR · API routes · proxy"]
 
   subgraph VSVC["Vercel services"]
     direction LR
@@ -15,7 +15,7 @@ flowchart TB
 
   SHOP["Shopify UCP<br/>live catalog + checkout"]
 
-  subgraph AWS["AWS — keyless via OIDC"]
+  subgraph AWS["AWS - keyless via OIDC"]
     direction LR
     PG[("Aurora PostgreSQL<br/>system of record")]
     DDB[("DynamoDB<br/>15-min holds · TTL · analytics · cache")]

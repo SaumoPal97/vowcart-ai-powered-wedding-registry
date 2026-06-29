@@ -13,36 +13,40 @@
 
 ## Architecture
 
+![VowCart architecture](docs/architecture.png)
+
 ```mermaid
 flowchart TB
   subgraph Clients["Clients"]
+    direction LR
     C["Couples & Guests<br/>(web)"]
     M["Merchants<br/>(web)"]
   end
 
-  subgraph Vercel["Vercel"]
-    APP["Next.js App Router<br/>SSR · API routes · proxy"]
-    GW["Vercel AI Gateway<br/>(LLM)"]
-    BLOB["Vercel Blob<br/>(photo uploads)"]
+  APP["Next.js App Router — Vercel<br/>SSR · API routes · proxy"]
+
+  subgraph VSVC["Vercel services"]
+    direction LR
+    GW["AI Gateway<br/>(LLM)"]
+    BLOB["Blob<br/>(photo uploads)"]
   end
+
+  SHOP["Shopify UCP<br/>live catalog + checkout"]
 
   subgraph AWS["AWS — keyless via OIDC"]
+    direction LR
     PG[("Aurora PostgreSQL<br/>system of record")]
-    DDB[("DynamoDB<br/>reservation locks · TTL<br/>analytics · AI cache")]
+    DDB[("DynamoDB<br/>15-min holds · TTL · analytics · cache")]
   end
 
-  SHOP["Shopify Universal Commerce Protocol<br/>live catalog + checkout handoff"]
+  C -->|"build registry, gift, reserve / contribute"| APP
+  M -->|"merchant portal, anonymized analytics"| APP
 
-  C -->|"build registry, gift,<br/>reserve / contribute"| APP
-  M -->|"merchant portal,<br/>anonymized analytics"| APP
-
-  APP -->|"couples, registries, items,<br/>purchases, contributions,<br/>merchants, campaigns"| PG
-  APP -->|"15-min holds, events,<br/>AI cache"| DDB
-  APP -->|"curate · copilot · thank-you notes"| GW
-  APP -->|"product search,<br/>checkout handoff"| SHOP
-  APP -->|"upload / serve images"| BLOB
-
-  APP -. "OIDC role (no static keys)" .-> AWS
+  APP -->|"curate · copilot · notes"| GW
+  APP -->|"image uploads"| BLOB
+  APP -->|"product search · checkout"| SHOP
+  APP -->|"relational data"| PG
+  APP -->|"holds · events · cache"| DDB
 ```
 
 **How the pieces connect**

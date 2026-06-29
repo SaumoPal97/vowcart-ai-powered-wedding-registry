@@ -63,7 +63,9 @@ flowchart TB
 
 ## Market & why now
 
-**A large, resilient market.** Weddings are one of the most durable consumer-spend categories on earth: roughly **2.1–2.5M weddings per year in the US**, part of a **~$70B+ annual US wedding industry** and a **~$300B+ global market** (widely cited industry estimates). The registry sits at the commerce heart of it — the vast majority of couples create at least one, US guests spend an estimated **$10B+ per year** on wedding gifts, and couples routinely register for **$5,000–7,000+** in products. And the exact same registry primitive powers adjacent, year-round occasions — baby showers, housewarmings, birthdays, holidays — so the model extends well beyond weddings.
+**A large, resilient market.** Weddings are one of the most durable consumer-spend categories there is: **~2.0M weddings per year in the US** ([CDC/NCHS reported ~2.04M marriages in 2023][cdc]; [The Wedding Report][twr] estimates ~2.0M weddings in 2024–25), inside a **~$63–70B/year US wedding industry** ([Grand View Research: $64.9B in 2024][gvr]; [IBISWorld: $70.3B in 2023][ibis]) and a global wedding-services market estimated at **$250B+** and growing double digits ([Grand View Research][gvr-global]).
+
+**The registry is the commerce core of it.** About **91% of couples create a wedding registry**, and — for the first time — online registry creation (55%) has overtaken in-store (44%) ([The Knot][knot-insights]). Guests spend an average of **~$150 per wedding gift** ([The Knot 2024 Guest Study][knot-gift]), against an average US wedding cost of **~$33,000** ([The Knot 2024 Real Weddings Study][knot-rws]). The **digital wedding registry market itself** is estimated at roughly **$16B in 2025, projected to ~$50B by 2033 (~14.8% CAGR)** ([market research, 2025][reg-market]). And the same registry primitive powers adjacent, year-round occasions — baby showers, housewarmings, birthdays, holidays — so the model extends well beyond weddings.
 
 **Why today's registries aren't actually universal.** The incumbents — Zola, The Knot, Amazon, Target, Crate & Barrel — build their catalogs through **merchant partnerships and one-off integrations**. Every brand on the platform is the result of a BD deal plus custom engineering, so even a "universal" registry is really a curated set of a few hundred partner brands. "Add any item" usually degrades to "paste a link we can't transact on," and most independent / DTC brands are simply missing. The catalog is gated by business development, not by what couples actually want to shop.
 
@@ -74,6 +76,18 @@ flowchart TB
 - A broader, more relevant catalog lifts **gift conversion** — which makes the **anonymized demand analytics** we sell to brands meaningfully more valuable.
 
 UCP is the reason a truly universal registry is suddenly buildable — and why the timing is now.
+
+<sub>Sources: figures are from third-party industry research and may use differing methodologies; ranges are given where estimates vary.</sub>
+
+[cdc]: https://www.cdc.gov/nchs/fastats/marriage-divorce.htm
+[twr]: https://wedding.report/index.cfm/action/wedding_statistics/view/market/id/00/idtype/s/location/United_States/
+[gvr]: https://www.grandviewresearch.com/industry-analysis/us-wedding-services-market-report
+[ibis]: https://www.ibisworld.com/industry-statistics/market-size/wedding-services-united-states/
+[gvr-global]: https://www.grandviewresearch.com/industry-analysis/wedding-services-market-report
+[knot-insights]: https://www.theknot.com/content/wedding-data-insights
+[knot-gift]: https://www.theknot.com/content/how-much-to-spend-on-wedding-gifts
+[knot-rws]: https://www.theknot.com/content/wedding-data-insights/weddings-in-2024
+[reg-market]: https://www.openpr.com/news/4192605/digital-wedding-registry-market-is-booming-worldwide-major
 
 ---
 
